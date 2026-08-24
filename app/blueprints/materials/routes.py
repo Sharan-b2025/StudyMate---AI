@@ -70,7 +70,8 @@ def upload():
 def detail(material_id):
     material = Material.query.filter_by(id=material_id, user_id=current_user.id).first_or_404()
     topics = material.topics.order_by(Topic.order_index).all()
-    return render_template("materials/detail.html", material=material, topics=topics)
+    page_count = file_processing.estimate_page_count(material.raw_text) if material.raw_text else 0
+    return render_template("materials/detail.html", material=material, topics=topics, page_count=page_count)
 
 
 @materials_bp.route("/<int:material_id>/simplify", methods=["POST"])
@@ -79,13 +80,29 @@ def simplify(material_id):
     material = Material.query.filter_by(id=material_id, user_id=current_user.id).first_or_404()
     if not material.raw_text:
         return jsonify({"error": "No extracted text available."}), 400
+
+    payload = request.get_json(silent=True) or {}
+    start_page = payload.get("start_page")
+    end_page = payload.get("end_page")
+
+    if start_page and end_page:
+        source_text = file_processing.get_text_for_page_range(material.raw_text, start_page, end_page)
+        if not source_text.strip():
+            return jsonify({"error": "No content found in that page range."}), 400
+    else:
+        source_text = material.raw_text
+
     try:
-        notes = ai_service.simplify_notes(material.raw_text)
-        material.simplified_notes = notes
-        db.session.commit()
+        notes = ai_service.simplify_notes(source_text)
+        # Only overwrite the saved "full document" notes when the whole doc was simplified
+        if not (start_page and end_page):
+            material.simplified_notes = notes
+            db.session.commit()
         return jsonify({"notes": notes})
     except ai_service.AIServiceError as exc:
         return jsonify({"error": str(exc)}), 503
+    except Exception as exc:  # noqa: BLE001
+        return jsonify({"error": f"Simplify failed: {exc}"}), 500
 
 
 @materials_bp.route("/<int:material_id>/extract-topics", methods=["POST"])
@@ -98,6 +115,8 @@ def extract_topics(material_id):
         topics_data = ai_service.extract_topics(material.raw_text)
     except ai_service.AIServiceError as exc:
         return jsonify({"error": str(exc)}), 503
+    except Exception as exc:  # noqa: BLE001
+        return jsonify({"error": f"Topic extraction failed: {exc}"}), 500
 
     created = []
     for idx, t in enumerate(topics_data):
@@ -118,6 +137,24 @@ def extract_topics(material_id):
         {"id": t.id, "title": t.title, "importance": t.importance, "estimated_minutes": t.estimated_minutes}
         for t in created
     ]})
+
+
+@materials_bp.route("/topic/<int:topic_id>/simplify", methods=["POST"])
+@login_required
+def simplify_topic(topic_id):
+    topic = Topic.query.filter_by(id=topic_id, user_id=current_user.id).first_or_404()
+    material = topic.material
+    if not material or not material.raw_text:
+        return jsonify({"error": "No source material available for this topic."}), 400
+    try:
+        notes = ai_service.simplify_topic(topic.title, material.raw_text)
+        topic.simplified_content = notes
+        db.session.commit()
+        return jsonify({"notes": notes})
+    except ai_service.AIServiceError as exc:
+        return jsonify({"error": str(exc)}), 503
+    except Exception as exc:  # noqa: BLE001
+        return jsonify({"error": f"Simplify failed: {exc}"}), 500
 
 
 @materials_bp.route("/<int:material_id>/delete", methods=["POST"])
