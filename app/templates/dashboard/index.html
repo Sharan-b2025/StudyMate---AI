@@ -1,0 +1,90 @@
+{% extends "base.html" %}
+{% block title %}Dashboard — StudyMate AI{% endblock %}
+{% block page_title %}Welcome back, {{ current_user.name.split(' ')[0] }} 👋{% endblock %}
+{% block topbar_actions %}
+<a href="{{ url_for('materials.upload') }}" class="btn btn-primary btn-sm">+ Upload material</a>
+{% endblock %}
+
+{% block content %}
+<div class="stat-grid fade-up">
+  <div class="card stat-card">
+    <div class="stat-icon" style="background:rgba(139,92,246,.15);color:var(--violet-light);">📈</div>
+    <div class="stat-value">{{ completion }}%</div>
+    <div class="stat-label">Syllabus completion</div>
+    <div class="progress-track mt-2"><div class="progress-fill" style="width:{{ completion }}%"></div></div>
+  </div>
+  <div class="card stat-card">
+    <div class="stat-icon" style="background:rgba(52,211,153,.15);color:var(--emerald);">✅</div>
+    <div class="stat-value">{{ completed }}</div>
+    <div class="stat-label">Topics completed</div>
+  </div>
+  <div class="card stat-card">
+    <div class="stat-icon" style="background:rgba(99,102,241,.15);color:var(--indigo);">⏳</div>
+    <div class="stat-value">{{ in_progress }}</div>
+    <div class="stat-label">In progress</div>
+  </div>
+  <div class="card stat-card">
+    <div class="stat-icon" style="background:rgba(251,191,36,.15);color:var(--amber);">🎯</div>
+    <div class="stat-value">{{ avg_score }}%</div>
+    <div class="stat-label">Avg. quiz score (last 5)</div>
+  </div>
+</div>
+
+<div class="grid-2 mt-3">
+  <div class="card fade-up">
+    <h3 class="mb-2">Topic breakdown</h3>
+    <canvas id="topicsDonut" height="220"></canvas>
+    <div class="flex gap-3 mt-3" style="font-size:13px;">
+      <span class="flex items-center gap-1"><span style="width:10px;height:10px;border-radius:50%;background:#34d399;display:inline-block;"></span> Completed</span>
+      <span class="flex items-center gap-1"><span style="width:10px;height:10px;border-radius:50%;background:#6366f1;display:inline-block;"></span> In progress</span>
+      <span class="flex items-center gap-1"><span style="width:10px;height:10px;border-radius:50%;background:#2b2f42;display:inline-block;"></span> Pending</span>
+    </div>
+  </div>
+
+  <div class="card fade-up">
+    <h3 class="mb-2">Quiz performance trend</h3>
+    <canvas id="quizLine" height="220"></canvas>
+  </div>
+</div>
+
+<div class="grid-2 mt-3">
+  <div class="card fade-up">
+    <div class="flex justify-between items-center mb-2">
+      <h3>Recent materials</h3>
+      <a href="{{ url_for('materials.index') }}" class="text-secondary" style="font-size:13px;">View all →</a>
+    </div>
+    {% if recent_materials %}
+      {% for m in recent_materials %}
+      <a href="{{ url_for('materials.detail', material_id=m.id) }}" class="flex justify-between items-center" style="padding:12px 0; border-bottom:1px solid var(--border-subtle);">
+        <div>
+          <div style="font-weight:600;font-size:14px;">{{ m.original_filename }}</div>
+          <div class="text-muted" style="font-size:12px;">{{ m.created_at.strftime('%b %d, %Y') }}</div>
+        </div>
+        <span class="badge badge-{{ m.status }}">{{ m.status }}</span>
+      </a>
+      {% endfor %}
+    {% else %}
+      <div class="empty-state">No materials yet. <a href="{{ url_for('materials.upload') }}" class="gradient-text" style="font-weight:600;">Upload your first one →</a></div>
+    {% endif %}
+  </div>
+
+  <div class="card fade-up">
+    <h3 class="mb-2">Quick actions</h3>
+    <div class="flex-col gap-2">
+      <a href="{{ url_for('materials.upload') }}" class="btn btn-ghost btn-block" style="justify-content:flex-start;">📄 Upload new material</a>
+      <a href="{{ url_for('planner.index') }}" class="btn btn-ghost btn-block" style="justify-content:flex-start;">📅 Generate today's plan</a>
+      <a href="{{ url_for('quiz.index') }}" class="btn btn-ghost btn-block" style="justify-content:flex-start;">🧠 Take a quiz</a>
+      <a href="{{ url_for('chat.index') }}" class="btn btn-ghost btn-block" style="justify-content:flex-start;">💬 Ask the AI assistant</a>
+    </div>
+  </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+<script src="{{ url_for('static', filename='js/charts.js') }}"></script>
+<script>
+  fetch("{{ url_for('api.topics_stats') }}").then(r => r.json()).then(counts => initTopicsDonut("topicsDonut", counts));
+  fetch("{{ url_for('api.quiz_history') }}").then(r => r.json()).then(points => initQuizLine("quizLine", points));
+</script>
+{% endblock %}

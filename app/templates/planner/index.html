@@ -1,0 +1,89 @@
+{% extends "base.html" %}
+{% block title %}Study Planner — StudyMate AI{% endblock %}
+{% block page_title %}Study planner{% endblock %}
+
+{% block content %}
+<div class="grid-2">
+  <div class="card fade-up">
+    <h3 class="mb-2">Generate an optimized plan</h3>
+    <form method="POST" action="{{ url_for('planner.generate') }}">
+      <div class="field">
+        <label>How much time do you have today?</label>
+        <input type="number" name="available_minutes" min="10" step="5" value="120" required>
+      </div>
+      <div class="field">
+        <label>Date</label>
+        <input type="date" name="plan_date" value="{{ todays_plan.plan_date.isoformat() if todays_plan else '' }}" placeholder="Today">
+      </div>
+      <button type="submit" class="btn btn-primary btn-block">⚡ Generate plan</button>
+    </form>
+  </div>
+
+  <div class="card fade-up">
+    <h3 class="mb-2">Overall syllabus completion</h3>
+    <div class="stat-value gradient-text">{{ completion }}%</div>
+    <div class="progress-track mt-2 mb-2"><div class="progress-fill" style="width:{{ completion }}%"></div></div>
+    <p class="text-secondary" style="font-size:13px;">{{ topics|length }} total topics tracked</p>
+  </div>
+</div>
+
+{% if todays_plan %}
+<div class="card mt-3 fade-up">
+  <h3 class="mb-2">Today's plan — {{ todays_plan.available_minutes }} minutes</h3>
+  {% for item in todays_plan.items.order_by('order_index') %}
+  <div class="plan-item-row flex items-center justify-between {{ 'done' if item.is_done }}" style="padding:12px 0;border-bottom:1px solid var(--border-subtle);">
+    <label class="flex items-center gap-2" style="margin:0;font-weight:500;">
+      <input type="checkbox" data-plan-item-toggle="{{ item.id }}" {{ 'checked' if item.is_done }} style="width:18px;height:18px;">
+      <span style="{{ 'text-decoration:line-through;color:var(--text-muted);' if item.is_done }}">{{ item.topic.title }}</span>
+    </label>
+    <span class="text-muted" style="font-size:13px;">{{ item.allocated_minutes }} min</span>
+  </div>
+  {% endfor %}
+</div>
+{% endif %}
+
+<div class="card mt-3 fade-up">
+  <h3 class="mb-3">This week</h3>
+  <div class="grid-3" style="grid-template-columns:repeat(7,1fr);gap:12px;">
+    {% for d in week_days %}
+    <div style="text-align:center;padding:14px 6px;border-radius:12px;background:rgba(255,255,255,.02);border:1px solid var(--border-subtle);">
+      <div class="text-muted" style="font-size:11px;">{{ d.strftime('%a') }}</div>
+      <div style="font-weight:700;font-size:15px;">{{ d.strftime('%d') }}</div>
+      {% set plan = week_plans[d] %}
+      {% if plan %}
+        <div class="badge badge-in_progress mt-1" style="font-size:10px;">{{ plan.available_minutes }}m</div>
+      {% else %}
+        <div class="text-muted mt-1" style="font-size:11px;">—</div>
+      {% endif %}
+    </div>
+    {% endfor %}
+  </div>
+</div>
+
+<div class="card mt-3 fade-up">
+  <h3 class="mb-3">All topics</h3>
+  {% if topics %}
+  <div style="display:grid;gap:2px;">
+    {% for t in topics %}
+    <div class="flex items-center justify-between" style="padding:14px 0;border-bottom:1px solid var(--border-subtle);">
+      <div>
+        <div style="font-weight:600;font-size:14px;">{{ t.title }}</div>
+        <div class="text-muted" style="font-size:12px;">{{ t.estimated_minutes }} min estimated</div>
+      </div>
+      <div class="flex items-center gap-2">
+        <span class="badge badge-{{ t.importance }}">{{ t.importance }}</span>
+        <span class="badge badge-{{ t.status }}">{{ t.status.replace('_',' ') }}</span>
+        <div class="flex gap-1">
+          <button class="btn btn-ghost btn-sm" data-topic-status="pending" data-topic-id="{{ t.id }}">Pending</button>
+          <button class="btn btn-ghost btn-sm" data-topic-status="in_progress" data-topic-id="{{ t.id }}">In progress</button>
+          <button class="btn btn-ghost btn-sm" data-topic-status="completed" data-topic-id="{{ t.id }}">Done</button>
+        </div>
+      </div>
+    </div>
+    {% endfor %}
+  </div>
+  {% else %}
+  <div class="empty-state">No topics yet. Upload material and extract topics to get started.</div>
+  {% endif %}
+</div>
+{% endblock %}

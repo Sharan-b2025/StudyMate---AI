@@ -1,0 +1,80 @@
+{% extends "base.html" %}
+{% block title %}{{ material.original_filename }} — StudyMate AI{% endblock %}
+{% block page_title %}{{ material.original_filename }}{% endblock %}
+{% block topbar_actions %}
+<form method="POST" action="{{ url_for('materials.delete', material_id=material.id) }}" onsubmit="return confirm('Delete this material?');">
+  <button type="submit" class="btn btn-danger btn-sm">Delete</button>
+</form>
+{% endblock %}
+
+{% block content %}
+{% if material.status == 'failed' %}
+  <div class="card" style="border-color:rgba(251,113,133,.4);">
+    <h3 class="mb-1" style="color:var(--rose);">Processing failed</h3>
+    <p class="text-secondary">{{ material.error_message }}</p>
+  </div>
+{% else %}
+<div class="grid-2">
+  <div class="card fade-up">
+    <div class="flex justify-between items-center mb-2">
+      <h3>Simplified notes</h3>
+      <button id="simplify-btn" class="btn btn-primary btn-sm">✨ Simplify with AI</button>
+    </div>
+    <div id="notes-output" style="font-size:14px;white-space:pre-wrap;line-height:1.7;">{{ material.simplified_notes or "Click “Simplify with AI” to generate clear, easy notes from this material." }}</div>
+  </div>
+
+  <div class="card fade-up">
+    <div class="flex justify-between items-center mb-2">
+      <h3>Topics</h3>
+      <button id="extract-btn" class="btn btn-primary btn-sm">🧩 Extract topics</button>
+    </div>
+    <div id="topics-output">
+      {% if topics %}
+        {% for t in topics %}
+        <div class="flex justify-between items-center" style="padding:10px 0;border-bottom:1px solid var(--border-subtle);">
+          <div>
+            <div style="font-weight:600;font-size:14px;">{{ t.title }}</div>
+            <div class="text-muted" style="font-size:12px;">{{ t.estimated_minutes }} min</div>
+          </div>
+          <span class="badge badge-{{ t.importance }}">{{ t.importance }}</span>
+        </div>
+        {% endfor %}
+      {% else %}
+        <div class="text-muted" style="font-size:14px;">No topics extracted yet.</div>
+      {% endif %}
+    </div>
+  </div>
+</div>
+
+<div class="card mt-3 fade-up">
+  <h3 class="mb-2">Raw extracted text</h3>
+  <div style="max-height:280px;overflow-y:auto;font-size:13px;color:var(--text-secondary);white-space:pre-wrap;font-family:var(--font-mono);">{{ material.raw_text }}</div>
+</div>
+{% endif %}
+{% endblock %}
+
+{% block extra_js %}
+<script>
+  const materialId = {{ material.id }};
+
+  document.getElementById("simplify-btn")?.addEventListener("click", async (e) => {
+    const btn = e.currentTarget;
+    btn.disabled = true; btn.textContent = "Simplifying…";
+    try {
+      const data = await postJSON(`/materials/${materialId}/simplify`, {});
+      document.getElementById("notes-output").innerText = data.notes;
+    } catch (err) { alert(err.message); }
+    btn.disabled = false; btn.textContent = "✨ Simplify with AI";
+  });
+
+  document.getElementById("extract-btn")?.addEventListener("click", async (e) => {
+    const btn = e.currentTarget;
+    btn.disabled = true; btn.textContent = "Extracting…";
+    try {
+      const data = await postJSON(`/materials/${materialId}/extract-topics`, {});
+      window.location.reload();
+    } catch (err) { alert(err.message); }
+    btn.disabled = false; btn.textContent = "🧩 Extract topics";
+  });
+</script>
+{% endblock %}

@@ -1,0 +1,210 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>StudyMate AI — Study smarter with an AI planner that adapts to you</title>
+  <meta name="description" content="Upload your syllabus, tell StudyMate AI how much time you have, and get an optimized study plan, simplified notes, and auto-generated quizzes.">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=Space+Grotesk:wght@500;600;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/base.css') }}">
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/landing.css') }}">
+</head>
+<body>
+
+<div class="container">
+  <nav class="nav-public">
+    <div class="flex items-center gap-1" style="font-family:var(--font-display); font-weight:700; font-size:18px;">
+      <div class="logo-mark" style="width:32px;height:32px;border-radius:9px;background:var(--grad-primary);display:flex;align-items:center;justify-content:center;font-size:15px;">🎓</div>
+      StudyMate<span class="gradient-text">AI</span>
+    </div>
+    <div class="nav-links">
+      <a href="#features">Features</a>
+      <a href="#phases">Roadmap</a>
+      <a href="#stack">Tech Stack</a>
+      <a href="{{ url_for('auth.login') }}">Sign in</a>
+      <a href="{{ url_for('auth.register') }}" class="btn btn-primary btn-sm">Get started</a>
+    </div>
+  </nav>
+
+  <section class="hero">
+    <div class="hero-eyebrow"><span class="dot"></span> Phase 1 live — AI planning engine online</div>
+    <h1 class="fade-up">Study less by chance.<br>Study more <span class="gradient-text">on purpose.</span></h1>
+    <p class="lead fade-up">Upload your notes, tell StudyMate AI how much time you have today, and
+      get a personalized plan, simplified explanations, and quizzes that find your weak spots —
+      automatically.</p>
+    <div class="hero-cta fade-up">
+      <a href="{{ url_for('auth.register') }}" class="btn btn-primary">Start studying free →</a>
+      <a href="#features" class="btn btn-ghost">See how it works</a>
+    </div>
+    <div class="hero-note fade-up">No credit card. Built with Flask + Gemini AI.</div>
+
+    <div class="hero-visual fade-up">
+      <div class="hero-visual-bar"><span></span><span></span><span></span></div>
+      <div style="padding:36px; display:grid; grid-template-columns:1fr 1fr; gap:24px;">
+        <div class="card" style="text-align:left;">
+          <div class="stat-label">Syllabus completion</div>
+          <div class="stat-value gradient-text">68%</div>
+          <div class="progress-track mt-2"><div class="progress-fill" style="width:68%"></div></div>
+        </div>
+        <div class="card" style="text-align:left;">
+          <div class="stat-label">Today's optimized plan</div>
+          <div class="mt-2" style="font-size:13px;">
+            <div class="flex justify-between mb-1"><span>Thermodynamics — Ch.4</span><span class="text-muted">45m</span></div>
+            <div class="flex justify-between mb-1"><span>Cell Biology — Ch.2</span><span class="text-muted">30m</span></div>
+            <div class="flex justify-between"><span>Quiz: Weak topics</span><span class="text-muted">15m</span></div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+</div>
+
+<div class="marquee-wrap">
+  <div class="marquee">
+    <span>PDF · DOCX · TXT · OCR IMAGE UPLOAD</span>
+    <span>AI TOPIC EXTRACTION</span>
+    <span>ADAPTIVE STUDY PLANNER</span>
+    <span>AUTO-GENERATED QUIZZES</span>
+    <span>WEAK-TOPIC TRACKING</span>
+    <span>AI STUDY ASSISTANT</span>
+    <span>PDF · DOCX · TXT · OCR IMAGE UPLOAD</span>
+    <span>AI TOPIC EXTRACTION</span>
+    <span>ADAPTIVE STUDY PLANNER</span>
+    <span>AUTO-GENERATED QUIZZES</span>
+    <span>WEAK-TOPIC TRACKING</span>
+    <span>AI STUDY ASSISTANT</span>
+  </div>
+</div>
+
+<div class="container">
+  <section class="section" id="features">
+    <div class="section-head">
+      <div class="section-tag">Core Engine</div>
+      <h2>Everything a student needs, <span class="gradient-text">nothing they don't</span></h2>
+      <p>StudyMate AI isn't a chatbot with a syllabus bolted on — it's a purpose-built planning system with AI at every decision point.</p>
+    </div>
+
+    <div class="bento">
+      <div class="card card-hover big fade-up">
+        <div class="feature-icon" style="background:rgba(139,92,246,.15); color:var(--violet-light);">📄</div>
+        <h3>Upload anything, understand everything</h3>
+        <p>PDF, DOCX, TXT, and scanned images via OCR. StudyMate extracts the text, then rewrites dense material into short, clear notes you'll actually remember.</p>
+      </div>
+      <div class="card card-hover wide fade-up">
+        <div class="feature-icon" style="background:rgba(34,211,238,.15); color:var(--cyan);">⏱️</div>
+        <h3>"I have 3 hours" → a real plan</h3>
+        <p>Tell the AI your available time. It ranks topics by importance and progress, then builds a session that actually fits.</p>
+      </div>
+      <div class="card card-hover wide fade-up">
+        <div class="feature-icon" style="background:rgba(52,211,153,.15); color:var(--emerald);">📊</div>
+        <h3>Live completion tracking</h3>
+        <p>Every topic is pending, in-progress, or completed. Your syllabus completion % updates in real time on the dashboard.</p>
+      </div>
+      <div class="card card-hover big fade-up">
+        <div class="feature-icon" style="background:rgba(236,72,153,.15); color:var(--pink);">🧠</div>
+        <h3>Quizzes that hunt your weak spots</h3>
+        <p>Auto-generated from your own material. StudyMate tags every question by topic and tracks which ones keep tripping you up — then feeds that back into your next plan.</p>
+      </div>
+      <div class="card card-hover fade-up">
+        <div class="feature-icon" style="background:rgba(251,191,36,.15); color:var(--amber);">📅</div>
+        <h3>Daily & weekly timetables</h3>
+        <p>A full week view of your study sessions, generated and re-optimized as you complete topics.</p>
+      </div>
+      <div class="card card-hover fade-up">
+        <div class="feature-icon" style="background:rgba(99,102,241,.15); color:var(--indigo);">💬</div>
+        <h3>AI study assistant</h3>
+        <p>Ask questions grounded in your own uploaded material, get study strategy advice, or just stay motivated.</p>
+      </div>
+    </div>
+  </section>
+
+  <section class="section" id="phases">
+    <div class="section-head">
+      <div class="section-tag">Build Roadmap</div>
+      <h2>Shipped in phases, <span class="gradient-text">built to scale</span></h2>
+      <p>StudyMate AI is engineered as a real product roadmap — not a single monolithic build.</p>
+    </div>
+
+    <div class="phase-track">
+      <div class="phase-row done">
+        <div class="phase-num">01</div>
+        <div>
+          <div class="phase-title">Core Platform <span class="badge badge-completed">Live</span></div>
+          <div class="phase-desc">Auth, file upload & extraction (PDF/DOCX/TXT/OCR), AI note simplification, AI topic extraction, adaptive planner, progress tracking, quiz engine with weak-topic detection, AI chat assistant, and the full dashboard.</div>
+          <div class="phase-tags">
+            <span class="phase-tag">Flask + SQLAlchemy</span>
+            <span class="phase-tag">Gemini AI service layer</span>
+            <span class="phase-tag">Jinja2 + Chart.js UI</span>
+          </div>
+        </div>
+      </div>
+      <div class="phase-row">
+        <div class="phase-num">02</div>
+        <div>
+          <div class="phase-title">Collaboration & Gamification <span class="badge badge-pending">Planned</span></div>
+          <div class="phase-desc">Study streaks & XP, shared study groups, leaderboard, spaced-repetition flashcard mode, exportable PDF study plans.</div>
+        </div>
+      </div>
+      <div class="phase-row">
+        <div class="phase-num">03</div>
+        <div>
+          <div class="phase-title">Smart Notifications <span class="badge badge-pending">Planned</span></div>
+          <div class="phase-desc">Email/SMS study reminders, calendar sync (Google Calendar), daily AI-generated recap emails, browser push notifications.</div>
+        </div>
+      </div>
+      <div class="phase-row">
+        <div class="phase-num">04</div>
+        <div>
+          <div class="phase-title">Analytics & Insights <span class="badge badge-pending">Planned</span></div>
+          <div class="phase-desc">Retention-curve predictions, subject-level analytics, exportable progress reports, teacher/parent view mode.</div>
+        </div>
+      </div>
+      <div class="phase-row">
+        <div class="phase-num">05</div>
+        <div>
+          <div class="phase-title">Platform Expansion <span class="badge badge-pending">Planned</span></div>
+          <div class="phase-desc">Public REST API, mobile-optimized PWA, multi-language support, voice-based study assistant.</div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section class="section" id="stack">
+    <div class="section-head">
+      <div class="section-tag">Under The Hood</div>
+      <h2>A clean, production-grade stack</h2>
+      <p>Python, Flask, and vanilla JS — deployable anywhere in minutes.</p>
+    </div>
+    <div class="stack-grid">
+      <div class="stack-pill">Python 3.12</div>
+      <div class="stack-pill">Flask</div>
+      <div class="stack-pill">SQLAlchemy</div>
+      <div class="stack-pill">Flask-Login</div>
+      <div class="stack-pill">Flask-Migrate</div>
+      <div class="stack-pill">PostgreSQL</div>
+      <div class="stack-pill">Gemini AI</div>
+      <div class="stack-pill">Jinja2</div>
+      <div class="stack-pill">Chart.js</div>
+      <div class="stack-pill">PyPDF</div>
+      <div class="stack-pill">python-docx</div>
+      <div class="stack-pill">Tesseract OCR</div>
+    </div>
+  </section>
+
+  <section class="section" style="padding-top:0;">
+    <div class="cta-block fade-up">
+      <h2>Your syllabus won't plan itself.</h2>
+      <p>Create a free account and get your first AI study plan in under two minutes.</p>
+      <a href="{{ url_for('auth.register') }}" class="btn btn-ghost">Get started free →</a>
+    </div>
+  </section>
+
+  <footer class="footer-public">
+    <div>© {{ 2025 }} StudyMate AI — built as a portfolio showcase project.</div>
+    <div>Phase 1 of 5 · Flask · Gemini AI · Deployed on Render</div>
+  </footer>
+</div>
+
+</body>
+</html>

@@ -1,0 +1,35 @@
+{% extends "base.html" %}
+{% block title %}Upload material — StudyMate AI{% endblock %}
+{% block page_title %}Upload material{% endblock %}
+
+{% block extra_css %}
+<style>
+  .dropzone {
+    border: 2px dashed var(--border-strong);
+    border-radius: var(--radius-lg);
+    padding: 60px 24px;
+    text-align: center;
+    cursor: pointer;
+    transition: border-color .2s, background .2s;
+  }
+  .dropzone.dragover { border-color: var(--violet); background: rgba(139,92,246,.06); }
+  .dropzone input[type=file] { display: none; }
+  .dz-icon { font-size: 44px; margin-bottom: 16px; }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="card fade-up" style="max-width:640px;margin:0 auto;">
+  <h3 class="mb-1">Upload study material</h3>
+  <p class="text-secondary mb-3" style="font-size:14px;">Supported formats: PDF, DOCX, TXT, PNG, JPG (max 25MB)</p>
+  <form method="POST" enctype="multipart/form-data">
+    <label class="dropzone" data-dropzone for="file-input">
+      <div class="dz-icon">📤</div>
+      <div style="font-weight:600;" data-filename>Click or drag a file here</div>
+      <div class="text-muted mt-1" style="font-size:13px;">PDF · DOCX · TXT · PNG · JPG</div>
+      <input id="file-input" type="file" name="file" accept=".pdf,.docx,.txt,.png,.jpg,.jpeg" required>
+    </label>
+    <button type="submit" class="btn btn-primary btn-block mt-3">Upload & process</button>
+  </form>
+</div>
+{% endblock %}

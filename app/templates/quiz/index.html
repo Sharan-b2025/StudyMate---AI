@@ -1,0 +1,63 @@
+{% extends "base.html" %}
+{% block title %}Quizzes — StudyMate AI{% endblock %}
+{% block page_title %}Quizzes{% endblock %}
+
+{% block content %}
+<div class="grid-2">
+  <div class="card fade-up">
+    <h3 class="mb-2">Generate a new quiz</h3>
+    {% if materials %}
+    <form method="POST" action="{{ url_for('quiz.generate') }}">
+      <div class="field">
+        <label>From material</label>
+        <select name="material_id" required>
+          {% for m in materials %}
+          <option value="{{ m.id }}">{{ m.original_filename }}</option>
+          {% endfor %}
+        </select>
+      </div>
+      <div class="field">
+        <label>Number of questions</label>
+        <input type="number" name="num_questions" value="5" min="3" max="15">
+      </div>
+      <button type="submit" class="btn btn-primary btn-block">🧠 Generate quiz</button>
+    </form>
+    {% else %}
+    <div class="empty-state">Upload and process a material first.</div>
+    {% endif %}
+  </div>
+
+  <div class="card fade-up">
+    <h3 class="mb-2">Your weak topics</h3>
+    {% if weak_topics %}
+      {% for topic, count in weak_topics %}
+      <div class="flex justify-between items-center" style="padding:10px 0;border-bottom:1px solid var(--border-subtle);">
+        <span style="font-size:14px;font-weight:500;">{{ topic }}</span>
+        <span class="badge badge-high">{{ count }} miss{{ 'es' if count != 1 }}</span>
+      </div>
+      {% endfor %}
+    {% else %}
+      <div class="empty-state">Take a quiz to discover weak topics.</div>
+    {% endif %}
+  </div>
+</div>
+
+<div class="card mt-3 fade-up">
+  <h3 class="mb-3">Quiz history</h3>
+  {% if quizzes %}
+  <div style="display:grid;gap:2px;">
+    {% for q in quizzes %}
+    <div class="flex justify-between items-center" style="padding:14px 0;border-bottom:1px solid var(--border-subtle);">
+      <div>
+        <div style="font-weight:600;font-size:14px;">{{ q.title }}</div>
+        <div class="text-muted" style="font-size:12px;">{{ q.questions.count() }} questions · {{ q.created_at.strftime('%b %d, %Y') }}</div>
+      </div>
+      <a href="{{ url_for('quiz.take', quiz_id=q.id) }}" class="btn btn-ghost btn-sm">Take quiz →</a>
+    </div>
+    {% endfor %}
+  </div>
+  {% else %}
+  <div class="empty-state">No quizzes generated yet.</div>
+  {% endif %}
+</div>
+{% endblock %}

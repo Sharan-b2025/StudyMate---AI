@@ -1,0 +1,26 @@
+{% extends "base.html" %}
+{% block title %}{{ quiz.title }} — StudyMate AI{% endblock %}
+{% block page_title %}{{ quiz.title }}{% endblock %}
+
+{% block content %}
+<form method="POST" action="{{ url_for('quiz.submit', quiz_id=quiz.id) }}" style="max-width:720px;margin:0 auto;">
+  {% for q in questions %}
+  <div class="card mb-3 fade-up">
+    <div class="text-muted mb-1" style="font-size:12px;">Question {{ loop.index }} of {{ questions|length }}</div>
+    <h3 class="mb-3" style="font-size:16px;">{{ q.question_text }}</h3>
+    <div class="flex-col gap-2">
+      {% for opt in ['A','B','C','D'] %}
+        {% set val = {'A': q.option_a, 'B': q.option_b, 'C': q.option_c, 'D': q.option_d}[opt] %}
+        {% if val %}
+        <label style="display:flex;align-items:center;gap:12px;padding:14px 16px;border:1px solid var(--border-subtle);border-radius:var(--radius-sm);cursor:pointer;font-weight:500;margin:0;">
+          <input type="radio" name="question_{{ q.id }}" value="{{ opt }}" required style="width:auto;">
+          <span style="color:var(--text-muted);font-weight:700;">{{ opt }}</span> {{ val }}
+        </label>
+        {% endif %}
+      {% endfor %}
+    </div>
+  </div>
+  {% endfor %}
+  <button type="submit" class="btn btn-primary btn-block">Submit quiz</button>
+</form>
+{% endblock %}

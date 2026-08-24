@@ -1,0 +1,82 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>{% block title %}StudyMate AI{% endblock %}</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=Space+Grotesk:wght@500;600;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/base.css') }}">
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/app.css') }}">
+  {% block extra_css %}{% endblock %}
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>🎓</text></svg>">
+</head>
+<body>
+  <div class="flash-stack">
+    {% with messages = get_flashed_messages(with_categories=true) %}
+      {% for category, message in messages %}
+        <div class="flash flash-{{ category }}">{{ message }}</div>
+      {% endfor %}
+    {% endwith %}
+  </div>
+
+  <div class="app-shell">
+    <aside class="sidebar">
+      <div class="sidebar-brand">
+        <div class="logo-mark">🎓</div>
+        <span>StudyMate<span class="gradient-text">AI</span></span>
+      </div>
+
+      <a href="{{ url_for('dashboard.index') }}" class="nav-item {{ 'active' if request.endpoint == 'dashboard.index' }}">
+        <svg fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M3 13h8V3H3v10zm0 8h8v-6H3v6zm10 0h8V11h-8v10zm0-18v6h8V3h-8z"/></svg>
+        Dashboard
+      </a>
+      <a href="{{ url_for('materials.index') }}" class="nav-item {{ 'active' if request.blueprint == 'materials' }}">
+        <svg fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M12 4.5A2.5 2.5 0 0114.5 2h5A2.5 2.5 0 0122 4.5v10a2.5 2.5 0 01-2.5 2.5h-5a2.5 2.5 0 00-2.5 2.5m0-15A2.5 2.5 0 009.5 2h-5A2.5 2.5 0 002 4.5v10A2.5 2.5 0 004.5 17h5a2.5 2.5 0 012.5 2.5"/></svg>
+        Materials
+      </a>
+      <a href="{{ url_for('planner.index') }}" class="nav-item {{ 'active' if request.blueprint == 'planner' }}">
+        <svg fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"/></svg>
+        Study Planner
+      </a>
+      <a href="{{ url_for('quiz.index') }}" class="nav-item {{ 'active' if request.blueprint == 'quiz' }}">
+        <svg fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z"/></svg>
+        Quizzes
+      </a>
+      <a href="{{ url_for('chat.index') }}" class="nav-item {{ 'active' if request.blueprint == 'chat' }}">
+        <svg fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z"/></svg>
+        AI Assistant
+      </a>
+
+      <div class="sidebar-footer">
+        {% if current_user.is_authenticated %}
+        <div class="sidebar-user">
+          <div class="avatar">{{ current_user.name[:1]|upper }}</div>
+          <div>
+            <div class="sidebar-user-name">{{ current_user.name }}</div>
+            <div class="sidebar-user-email">{{ current_user.email }}</div>
+          </div>
+        </div>
+        <a href="{{ url_for('auth.logout') }}" class="nav-item mt-1">
+          <svg fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1"/></svg>
+          Sign out
+        </a>
+        {% endif %}
+      </div>
+    </aside>
+
+    <div class="main-area">
+      <header class="topbar">
+        <h1>{% block page_title %}Dashboard{% endblock %}</h1>
+        {% block topbar_actions %}{% endblock %}
+      </header>
+      <main class="main-content">
+        {% block content %}{% endblock %}
+      </main>
+    </div>
+  </div>
+
+  <script src="{{ url_for('static', filename='js/app.js') }}"></script>
+  {% block extra_js %}{% endblock %}
+</body>
+</html>

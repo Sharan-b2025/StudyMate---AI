@@ -1,0 +1,28 @@
+{% extends "base.html" %}
+{% block title %}Quiz result — StudyMate AI{% endblock %}
+{% block page_title %}Quiz result{% endblock %}
+
+{% block content %}
+{% set pct = (attempt.score / attempt.total_questions * 100) if attempt.total_questions else 0 %}
+<div class="card fade-up mb-3" style="text-align:center;padding:44px;">
+  <div class="stat-label">Your score</div>
+  <div class="stat-value gradient-text" style="font-size:48px;">{{ attempt.score }}/{{ attempt.total_questions }}</div>
+  <div class="text-secondary mt-1">{{ pct|round(1) }}% correct</div>
+  <div class="progress-track mt-2" style="max-width:320px;margin:16px auto 0;"><div class="progress-fill" style="width:{{ pct }}%"></div></div>
+</div>
+
+{% for q in questions %}
+{% set chosen = answers.get(q.id|string) %}
+{% set correct = chosen == q.correct_option %}
+<div class="card mb-2 fade-up" style="border-color:{{ 'rgba(52,211,153,.4)' if correct else 'rgba(251,113,133,.4)' }};">
+  <div class="flex justify-between items-start mb-1">
+    <h3 style="font-size:15px;">{{ q.question_text }}</h3>
+    <span class="badge {{ 'badge-completed' if correct else 'badge-high' }}">{{ 'Correct' if correct else 'Incorrect' }}</span>
+  </div>
+  <p class="text-secondary" style="font-size:13px;">Your answer: {{ chosen or '—' }} · Correct answer: {{ q.correct_option }}</p>
+  {% if q.explanation %}<p class="text-muted mt-1" style="font-size:13px;">{{ q.explanation }}</p>{% endif %}
+</div>
+{% endfor %}
+
+<a href="{{ url_for('quiz.index') }}" class="btn btn-primary mt-2">Back to quizzes</a>
+{% endblock %}
