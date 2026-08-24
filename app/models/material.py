@@ -27,6 +27,7 @@ class Topic(db.Model):
     material_id = db.Column(db.Integer, db.ForeignKey("materials.id"), nullable=True)
     title = db.Column(db.String(255), nullable=False)
     summary = db.Column(db.Text)
+    simplified_content = db.Column(db.Text)  # AI-simplified notes for just this topic
     importance = db.Column(db.String(10), default="medium")  # high, medium, low
     estimated_minutes = db.Column(db.Integer, default=30)
     status = db.Column(db.String(20), default="pending")  # pending, in_progress, completed
