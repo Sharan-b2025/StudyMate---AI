@@ -20,6 +20,24 @@
       <h3>Simplified notes</h3>
       <button id="simplify-btn" class="btn btn-primary btn-sm">✨ Simplify with AI</button>
     </div>
+
+    {% if page_count > 1 %}
+    <div class="flex items-center gap-2 mb-2" style="flex-wrap:wrap;">
+      <select id="notes-range-select" style="width:auto;padding:8px 12px;font-size:13px;">
+        <option value="all">Whole document ({{ page_count }} pages)</option>
+        <option value="1-5" {{ 'disabled' if page_count < 2 }}>First 5 pages</option>
+        <option value="1-10" {{ 'disabled' if page_count < 6 }}>First 10 pages</option>
+        <option value="1-15" {{ 'disabled' if page_count < 11 }}>First 15 pages</option>
+        <option value="custom">Custom range…</option>
+      </select>
+      <span id="custom-range-inputs" style="display:none;" class="flex items-center gap-1">
+        <input type="number" id="range-start" min="1" max="{{ page_count }}" value="1" style="width:70px;padding:8px;font-size:13px;">
+        <span class="text-muted" style="font-size:13px;">to</span>
+        <input type="number" id="range-end" min="1" max="{{ page_count }}" value="{{ page_count }}" style="width:70px;padding:8px;font-size:13px;">
+      </span>
+    </div>
+    {% endif %}
+
     <div id="notes-output" style="font-size:14px;white-space:pre-wrap;line-height:1.7;">{{ material.simplified_notes or "Click “Simplify with AI” to generate clear, easy notes from this material." }}</div>
   </div>
 
@@ -31,12 +49,23 @@
     <div id="topics-output">
       {% if topics %}
         {% for t in topics %}
-        <div class="flex justify-between items-center" style="padding:10px 0;border-bottom:1px solid var(--border-subtle);">
-          <div>
-            <div style="font-weight:600;font-size:14px;">{{ t.title }}</div>
-            <div class="text-muted" style="font-size:12px;">{{ t.estimated_minutes }} min</div>
+        <div class="topic-block" style="border-bottom:1px solid var(--border-subtle);">
+          <div class="flex justify-between items-center topic-row" data-topic-toggle="{{ t.id }}" style="padding:10px 0;cursor:pointer;">
+            <div>
+              <div style="font-weight:600;font-size:14px;">{{ t.title }}</div>
+              <div class="text-muted" style="font-size:12px;">{{ t.estimated_minutes }} min</div>
+            </div>
+            <div class="flex items-center gap-1">
+              <span class="badge badge-{{ t.importance }}">{{ t.importance }}</span>
+              <span class="text-muted" style="font-size:12px;">▾</span>
+            </div>
           </div>
-          <span class="badge badge-{{ t.importance }}">{{ t.importance }}</span>
+          <div class="topic-panel" id="topic-panel-{{ t.id }}" style="display:none;padding:0 0 16px;">
+            <button class="btn btn-primary btn-sm topic-simplify-btn" data-topic-id="{{ t.id }}">✨ Simplify this topic</button>
+            <div class="topic-notes mt-2" id="topic-notes-{{ t.id }}" style="font-size:13px;white-space:pre-wrap;line-height:1.7;">
+              {{ t.simplified_content or "" }}
+            </div>
+          </div>
         </div>
         {% endfor %}
       {% else %}
@@ -48,7 +77,7 @@
 
 <div class="card mt-3 fade-up">
   <h3 class="mb-2">Raw extracted text</h3>
-  <div style="max-height:280px;overflow-y:auto;font-size:13px;color:var(--text-secondary);white-space:pre-wrap;font-family:var(--font-mono);">{{ material.raw_text }}</div>
+  <div style="max-height:280px;overflow-y:auto;font-size:13px;color:var(--text-secondary);white-space:pre-wrap;font-family:var(--font-mono);">{{ material.raw_text.replace('[[PAGE:', '\n--- Page ').replace(']]', ' ---') if material.raw_text else '' }}</div>
 </div>
 {% endif %}
 {% endblock %}
@@ -57,11 +86,31 @@
 <script>
   const materialId = {{ material.id }};
 
+  document.getElementById("notes-range-select")?.addEventListener("change", (e) => {
+    const customInputs = document.getElementById("custom-range-inputs");
+    if (customInputs) customInputs.style.display = e.target.value === "custom" ? "flex" : "none";
+  });
+
   document.getElementById("simplify-btn")?.addEventListener("click", async (e) => {
     const btn = e.currentTarget;
+    const select = document.getElementById("notes-range-select");
+    let body = {};
+
+    if (select && select.value !== "all") {
+      let start, end;
+      if (select.value === "custom") {
+        start = parseInt(document.getElementById("range-start").value, 10);
+        end = parseInt(document.getElementById("range-end").value, 10);
+      } else {
+        [start, end] = select.value.split("-").map(Number);
+      }
+      if (!start || !end || start > end) { alert("Enter a valid page range."); return; }
+      body = { start_page: start, end_page: end };
+    }
+
     btn.disabled = true; btn.textContent = "Simplifying…";
     try {
-      const data = await postJSON(`/materials/${materialId}/simplify`, {});
+      const data = await postJSON(`/materials/${materialId}/simplify`, body);
       document.getElementById("notes-output").innerText = data.notes;
     } catch (err) { alert(err.message); }
     btn.disabled = false; btn.textContent = "✨ Simplify with AI";
@@ -75,6 +124,32 @@
       window.location.reload();
     } catch (err) { alert(err.message); }
     btn.disabled = false; btn.textContent = "🧩 Extract topics";
+  });
+
+  // Expand/collapse a topic to show its simplified notes
+  document.querySelectorAll("[data-topic-toggle]").forEach((row) => {
+    row.addEventListener("click", () => {
+      const id = row.dataset.topicToggle;
+      const panel = document.getElementById(`topic-panel-${id}`);
+      if (panel) panel.style.display = panel.style.display === "none" ? "block" : "none";
+    });
+  });
+
+  // Simplify a single topic (keeps every important point, just shortens/clarifies)
+  document.querySelectorAll(".topic-simplify-btn").forEach((btn) => {
+    btn.addEventListener("click", async (e) => {
+      e.stopPropagation();
+      const topicId = btn.dataset.topicId;
+      const output = document.getElementById(`topic-notes-${topicId}`);
+      btn.disabled = true; btn.textContent = "Simplifying…";
+      try {
+        const data = await postJSON(`/materials/topic/${topicId}/simplify`, {});
+        output.innerText = data.notes;
+      } catch (err) {
+        alert(err.message);
+      }
+      btn.disabled = false; btn.textContent = "✨ Simplify this topic";
+    });
   });
 </script>
 {% endblock %}
