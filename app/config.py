@@ -32,7 +32,7 @@ class Config:
     # AI provider abstraction
     AI_PROVIDER = os.environ.get("AI_PROVIDER", "gemini")
     GEMINI_API_KEY = os.environ.get("GEMINI_API_KEY", "")
-    GEMINI_MODEL = os.environ.get("GEMINI_MODEL", "gemini-2.0-flash")
+    GEMINI_MODEL = os.environ.get("GEMINI_MODEL", "gemini-3.5-flash")
     OPENAI_API_KEY = os.environ.get("OPENAI_API_KEY", "")
 
     TESSERACT_CMD = os.environ.get("TESSERACT_CMD", "")
