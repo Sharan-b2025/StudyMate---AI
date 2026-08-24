@@ -8,7 +8,11 @@ All extraction failures are caught and returned as (None, error_message)
 so upload flows never crash on a corrupted/unsupported file.
 """
 import os
+import re
 from flask import current_app
+
+PAGE_MARKER_RE = re.compile(r"\[\[PAGE:(\d+)\]\]")
+CHARS_PER_PSEUDO_PAGE = 3000  # used as a "page" size for DOCX/TXT/OCR text (no real pages)
 
 
 class ExtractionError(Exception):
@@ -43,8 +47,8 @@ def _extract_pdf(filepath):
     for page in reader.pages:
         content = page.extract_text() or ""
         pages.append(content)
-    text = "\n".join(pages).strip()
-    if not text:
+    text = "\n\n".join(f"[[PAGE:{i}]]\n{content}" for i, content in enumerate(pages, start=1)).strip()
+    if not text.replace("[[PAGE:", "").strip():
         raise ExtractionError("No extractable text found (the PDF may be scanned/image-only).")
     return text
 
@@ -84,3 +88,47 @@ def _extract_image(filepath):
     if not text:
         raise ExtractionError("No text could be detected in the image.")
     return text
+
+
+# ---------------------------------------------------------------------------
+# Page/section range helpers — power the "which part of the document" picker
+# on the Simplify Notes screen. Real PDFs use actual page boundaries; DOCX,
+# TXT, and OCR text (which have no real pages) fall back to even character
+# chunks acting as "pseudo pages" so the same UI works for every file type.
+# ---------------------------------------------------------------------------
+
+def has_page_markers(raw_text):
+    return bool(PAGE_MARKER_RE.search(raw_text or ""))
+
+
+def estimate_page_count(raw_text):
+    if not raw_text:
+        return 0
+    if has_page_markers(raw_text):
+        return len(PAGE_MARKER_RE.findall(raw_text))
+    return max(1, -(-len(raw_text) // CHARS_PER_PSEUDO_PAGE))  # ceil division
+
+
+def get_text_for_page_range(raw_text, start_page, end_page):
+    """Return text for pages [start_page, end_page], 1-indexed and inclusive.
+    Uses real [[PAGE:n]] markers for PDFs; falls back to even character
+    chunks for DOCX/TXT/OCR text that has no real page concept."""
+    if not raw_text:
+        return ""
+    start_page = max(1, int(start_page))
+    end_page = max(start_page, int(end_page))
+
+    if has_page_markers(raw_text):
+        matches = list(PAGE_MARKER_RE.finditer(raw_text))
+        selected = []
+        for idx, m in enumerate(matches):
+            page_num = idx + 1
+            if start_page <= page_num <= end_page:
+                content_start = m.end()
+                content_end = matches[idx + 1].start() if idx + 1 < len(matches) else len(raw_text)
+                selected.append(raw_text[content_start:content_end].strip())
+        return "\n\n".join(selected)
+
+    start_idx = (start_page - 1) * CHARS_PER_PSEUDO_PAGE
+    end_idx = end_page * CHARS_PER_PSEUDO_PAGE
+    return raw_text[start_idx:end_idx]
