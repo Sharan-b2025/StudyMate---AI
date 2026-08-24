@@ -8,7 +8,7 @@ never requires touching business logic in the blueprints.
 Configured via environment variables:
     AI_PROVIDER=gemini            (default)
     GEMINI_API_KEY=...
-    GEMINI_MODEL=gemini-2.0-flash
+    GEMINI_MODEL=gemini-2.5-flash
 
 Public functions (all return plain Python data, never raw API responses):
     simplify_notes(raw_text, style="simple") -> str
@@ -36,20 +36,29 @@ def _get_model():
             "GEMINI_API_KEY is not configured. Set it in your environment / Render dashboard."
         )
     genai.configure(api_key=api_key)
-    model_name = current_app.config.get("GEMINI_MODEL", "gemini-2.0-flash")
+    model_name = current_app.config.get("GEMINI_MODEL", "gemini-2.5-flash")
     return genai.GenerativeModel(model_name)
 
 
 def _call(prompt, temperature=0.4, max_tokens=2048):
     model = _get_model()
-    response = model.generate_content(
-        prompt,
-        generation_config=genai.types.GenerationConfig(
-            temperature=temperature,
-            max_output_tokens=max_tokens,
-        ),
-    )
-    return (response.text or "").strip()
+    try:
+        response = model.generate_content(
+            prompt,
+            generation_config=genai.types.GenerationConfig(
+                temperature=temperature,
+                max_output_tokens=max_tokens,
+            ),
+        )
+    except AIServiceError:
+        raise
+    except Exception as exc:  # noqa: BLE001 - any SDK/network error becomes a clean AIServiceError
+        raise AIServiceError(f"AI request failed: {exc}") from exc
+
+    text = (response.text or "").strip() if response else ""
+    if not text:
+        raise AIServiceError("The AI returned an empty response. Try again.")
+    return text
 
 
 def _extract_json(text):
@@ -64,8 +73,13 @@ def _extract_json(text):
         raise AIServiceError("AI response was not valid JSON.")
 
 
+def _clean(raw_text):
+    """Strip internal [[PAGE:n]] markers before sending text to the AI."""
+    return re.sub(r"\[\[PAGE:\d+\]\]", "", raw_text or "").strip()
+
+
 def simplify_notes(raw_text, style="simple"):
-    text = raw_text[:15000]
+    text = _clean(raw_text)[:100000]
     prompt = f"""You are an expert tutor. Convert the study material below into short,
 clear, easy-to-understand notes for a student. Use bullet points, bold key terms
 with **asterisks**, and short paragraphs. Keep the meaning fully intact, just simplify
@@ -79,7 +93,7 @@ Return only the simplified notes in Markdown, no preamble."""
 
 
 def extract_topics(raw_text):
-    text = raw_text[:15000]
+    text = _clean(raw_text)[:100000]
     prompt = f"""Analyze the following syllabus / study material and extract the
 distinct topics or chapters a student needs to study.
 
@@ -96,6 +110,30 @@ MATERIAL:
 {text}"""
     result = _call(prompt, temperature=0.2)
     return _extract_json(result)
+
+
+def simplify_topic(topic_title, material_text):
+    """Produce short, simplified notes for ONE specific topic, pulled from the
+    full material. Every important point for this topic must be kept — only
+    the language and structure are simplified, nothing is dropped."""
+    text = _clean(material_text)[:100000]
+    prompt = f"""You are an expert tutor. Below is the FULL study material for a course.
+Find everything relevant to the topic "{topic_title}" and rewrite it as short,
+clear, easy-to-understand notes for a student.
+
+Rules:
+- Cover every important point related to this topic — do not skip or omit any
+  fact, definition, formula, or key detail connected to "{topic_title}".
+- Simplify the language and structure only. Do not remove information.
+- Use bullet points, bold key terms with **asterisks**, short paragraphs.
+- If the topic isn't clearly covered in the material, say so briefly and
+  summarize the closest related content instead.
+
+FULL STUDY MATERIAL:
+{text}
+
+Return only the simplified notes for "{topic_title}" in Markdown, no preamble."""
+    return _call(prompt, temperature=0.3)
 
 
 def generate_study_plan(topics, available_minutes):
@@ -127,7 +165,7 @@ Return ONLY a JSON array like:
 
 
 def generate_quiz(raw_text, num_questions=5):
-    text = raw_text[:15000]
+    text = _clean(raw_text)[:100000]
     prompt = f"""Create a {num_questions}-question multiple choice quiz from the study
 material below. Cover the most important concepts.
 
