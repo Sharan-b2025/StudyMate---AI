@@ -44,6 +44,9 @@ def generate():
     except ai_service.AIServiceError as exc:
         flash(str(exc), "error")
         return redirect(url_for("quiz.index"))
+    except Exception as exc:  # noqa: BLE001 - never let quiz generation 500 the page
+        flash(f"Quiz generation failed: {exc}", "error")
+        return redirect(url_for("quiz.index"))
 
     quiz = Quiz(user_id=current_user.id, material_id=material.id, title=f"Quiz: {material.original_filename}")
     db.session.add(quiz)
