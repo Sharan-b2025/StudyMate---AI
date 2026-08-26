@@ -10,10 +10,16 @@
     <form method="POST" action="{{ url_for('quiz.generate') }}">
       <div class="field">
         <label>From material</label>
-        <select name="material_id" required>
+        <select name="material_id" id="material-select" required>
           {% for m in materials %}
           <option value="{{ m.id }}">{{ m.original_filename }}</option>
           {% endfor %}
+        </select>
+      </div>
+      <div class="field">
+        <label>Focus on a specific topic (optional)</label>
+        <select name="topic_id" id="topic-select">
+          <option value="">Whole material</option>
         </select>
       </div>
       <div class="field">
@@ -60,4 +66,30 @@
   <div class="empty-state">No quizzes generated yet.</div>
   {% endif %}
 </div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+  // Topics grouped by material, rendered server-side so the topic dropdown
+  // can repopulate instantly without another request.
+  const topicsByMaterial = {{ topics_by_material | tojson }};
+
+  function refreshTopicOptions() {
+    const materialSelect = document.getElementById("material-select");
+    const topicSelect = document.getElementById("topic-select");
+    if (!materialSelect || !topicSelect) return;
+
+    const topics = topicsByMaterial[materialSelect.value] || [];
+    topicSelect.innerHTML = '<option value="">Whole material</option>';
+    topics.forEach((t) => {
+      const opt = document.createElement("option");
+      opt.value = t.id;
+      opt.textContent = t.title;
+      topicSelect.appendChild(opt);
+    });
+  }
+
+  document.getElementById("material-select")?.addEventListener("change", refreshTopicOptions);
+  refreshTopicOptions();
+</script>
 {% endblock %}
