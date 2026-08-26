@@ -187,6 +187,32 @@ MATERIAL:
     return _extract_json(result)
 
 
+def generate_quiz_for_topic(topic_title, material_text, num_questions=5):
+    """Create a quiz focused on ONE topic only, using the full material for
+    context so every question stays accurate and grounded."""
+    text = _clean(material_text)[:100000]
+    prompt = f"""Below is the FULL study material for a course. Create a
+{num_questions}-question multiple choice quiz that tests ONLY the topic
+"{topic_title}". Ignore unrelated sections of the material.
+
+Return ONLY a JSON array like:
+[{{
+  "question_text": "...",
+  "option_a": "...",
+  "option_b": "...",
+  "option_c": "...",
+  "option_d": "...",
+  "correct_option": "A",
+  "explanation": "...",
+  "topic_tag": "{topic_title}"
+}}]
+
+FULL STUDY MATERIAL:
+{text}"""
+    result = _call(prompt, temperature=0.4)
+    return _extract_json(result)
+
+
 def chat_reply(history, user_message, context=""):
     convo = "\n".join(f"{h['role'].upper()}: {h['content']}" for h in history[-10:])
     prompt = f"""You are StudyMate AI, a friendly and encouraging study assistant.
@@ -201,4 +227,29 @@ CONVERSATION SO FAR:
 STUDENT: {user_message}
 
 Respond as StudyMate AI:"""
+    return _call(prompt, temperature=0.6)
+
+
+def coach_reply(history, user_message, topic_title, context=""):
+    """AI Coach — a focused, patient tutor for ONE specific topic. Meant to
+    be read aloud (voice mode), so responses stay conversational and short."""
+    convo = "\n".join(f"{h['role'].upper()}: {h['content']}" for h in history[-10:])
+    prompt = f"""You are an expert, patient personal tutor who specializes in
+teaching "{topic_title}". A student is studying this exact topic right now and
+may ask you to explain it, quiz them, or clear up doubts.
+
+Rules:
+- Stay focused on "{topic_title}" unless the student clearly asks something else.
+- Teach step by step. Use simple language and short sentences.
+- Keep answers conversational and not too long — this may be read aloud to the student.
+- Encourage the student and check understanding when it helps.
+
+{f"REFERENCE MATERIAL FOR THIS TOPIC:\n{context[:6000]}" if context else ""}
+
+CONVERSATION SO FAR:
+{convo}
+
+STUDENT: {user_message}
+
+Respond as the tutor:"""
     return _call(prompt, temperature=0.6)
