@@ -2,19 +2,53 @@
 {% block title %}Study Planner — StudyMate AI{% endblock %}
 {% block page_title %}Study planner{% endblock %}
 
+{% block extra_css %}
+<style>
+  .unit-toggle { display: flex; gap: 6px; margin-top: 8px; }
+  .unit-btn {
+    flex: 1; padding: 8px; text-align: center; border-radius: var(--radius-sm);
+    border: 1px solid var(--border-subtle); background: rgba(255,255,255,.03);
+    font-size: 12px; font-weight: 600; cursor: pointer; color: var(--text-secondary);
+    transition: all .2s;
+  }
+  .unit-btn.active { background: var(--grad-primary); color: #fff; border-color: transparent; }
+  .break-row { background: rgba(251,191,36,.05); border-radius: 10px; padding-left: 10px !important; }
+  .timer-badge {
+    font-family: var(--font-mono); font-size: 13px; font-weight: 700;
+    padding: 4px 10px; border-radius: var(--radius-full);
+    background: rgba(139,92,246,.12); color: var(--violet-light);
+    min-width: 58px; text-align: center;
+  }
+  .timer-badge.running { background: rgba(52,211,153,.15); color: var(--emerald); }
+</style>
+{% endblock %}
+
 {% block content %}
 <div class="grid-2">
   <div class="card fade-up">
     <h3 class="mb-2">Generate an optimized plan</h3>
-    <form method="POST" action="{{ url_for('planner.generate') }}">
+    <form method="POST" action="{{ url_for('planner.generate') }}" id="plan-form">
       <div class="field">
         <label>How much time do you have today?</label>
-        <input type="number" name="available_minutes" min="10" step="5" value="120" required>
+        <input type="number" id="time-amount" min="1" step="1" value="120">
+        <div class="unit-toggle">
+          <div class="unit-btn active" data-unit="minutes">Minutes</div>
+          <div class="unit-btn" data-unit="hours">Hours</div>
+          <div class="unit-btn" data-unit="days">Days</div>
+        </div>
+        <p class="text-muted mt-1" style="font-size:12px;">
+          "Days" uses your daily study goal ({{ current_user.daily_goal_minutes }} min/day) to convert into total minutes.
+        </p>
+        <input type="hidden" name="available_minutes" id="available-minutes-hidden" value="120">
       </div>
       <div class="field">
         <label>Date</label>
         <input type="date" name="plan_date" value="{{ todays_plan.plan_date.isoformat() if todays_plan else '' }}" placeholder="Today">
       </div>
+      <label class="flex items-center gap-2 mb-3" style="font-weight:500;font-size:14px;cursor:pointer;">
+        <input type="checkbox" name="include_breaks" checked style="width:18px;height:18px;">
+        ☕ Include short breaks (Pomodoro-style, every ~50 minutes)
+      </label>
       <button type="submit" class="btn btn-primary btn-block">⚡ Generate plan</button>
     </form>
   </div>
@@ -31,12 +65,22 @@
 <div class="card mt-3 fade-up">
   <h3 class="mb-2">Today's plan — {{ todays_plan.available_minutes }} minutes</h3>
   {% for item in todays_plan.items.order_by('order_index') %}
-  <div class="plan-item-row flex items-center justify-between {{ 'done' if item.is_done }}" style="padding:12px 0;border-bottom:1px solid var(--border-subtle);">
+  <div class="plan-item-row flex items-center justify-between {{ 'done' if item.is_done }} {{ 'break-row' if item.is_break }}" style="padding:12px 0;border-bottom:1px solid var(--border-subtle);">
     <label class="flex items-center gap-2" style="margin:0;font-weight:500;">
       <input type="checkbox" data-plan-item-toggle="{{ item.id }}" {{ 'checked' if item.is_done }} style="width:18px;height:18px;">
-      <span style="{{ 'text-decoration:line-through;color:var(--text-muted);' if item.is_done }}">{{ item.topic.title }}</span>
+      {% if item.is_break %}
+        <span style="{{ 'text-decoration:line-through;color:var(--text-muted);' if item.is_done }}">{{ item.label or 'Break' }}</span>
+      {% else %}
+        <span style="{{ 'text-decoration:line-through;color:var(--text-muted);' if item.is_done }}">{{ item.topic.title if item.topic else 'Removed topic' }}</span>
+        {% if item.topic %}
+        <a href="{{ url_for('coach.index', topic_id=item.topic.id) }}" class="text-muted" title="Ask AI Coach about this topic" style="font-size:13px;">🎓</a>
+        {% endif %}
+      {% endif %}
     </label>
-    <span class="text-muted" style="font-size:13px;">{{ item.allocated_minutes }} min</span>
+    <div class="flex items-center gap-2">
+      <span class="timer-badge" data-timer-minutes="{{ item.allocated_minutes }}" data-timer-id="{{ item.id }}">{{ item.allocated_minutes }}:00</span>
+      <button type="button" class="btn btn-ghost btn-sm" data-timer-start="{{ item.id }}">▶</button>
+    </div>
   </div>
   {% endfor %}
 </div>
@@ -61,7 +105,8 @@
 </div>
 
 <div class="card mt-3 fade-up">
-  <h3 class="mb-3">All topics</h3>
+  <h3 class="mb-1">All topics</h3>
+  <p class="text-muted mb-2" style="font-size:12px;">The colored badge shows <strong>importance</strong> — how central this topic is — not difficulty.</p>
   {% if topics %}
   <div style="display:grid;gap:2px;">
     {% for t in topics %}
@@ -71,8 +116,9 @@
         <div class="text-muted" style="font-size:12px;">{{ t.estimated_minutes }} min estimated</div>
       </div>
       <div class="flex items-center gap-2">
-        <span class="badge badge-{{ t.importance }}">{{ t.importance }}</span>
+        <span class="badge badge-{{ t.importance }}" title="Importance, not difficulty">{{ t.importance }}</span>
         <span class="badge badge-{{ t.status }}">{{ t.status.replace('_',' ') }}</span>
+        <a href="{{ url_for('coach.index', topic_id=t.id) }}" class="btn btn-ghost btn-sm">🎓 Coach</a>
         <div class="flex gap-1">
           <button class="btn btn-ghost btn-sm" data-topic-status="pending" data-topic-id="{{ t.id }}">Pending</button>
           <button class="btn btn-ghost btn-sm" data-topic-status="in_progress" data-topic-id="{{ t.id }}">In progress</button>
@@ -86,4 +132,90 @@
   <div class="empty-state">No topics yet. Upload material and extract topics to get started.</div>
   {% endif %}
 </div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+  const DAILY_GOAL_MINUTES = {{ current_user.daily_goal_minutes or 120 }};
+
+  // ---- Unit toggle: minutes / hours / days -> always submits minutes ----
+  const unitButtons = document.querySelectorAll(".unit-btn");
+  const amountInput = document.getElementById("time-amount");
+  const hiddenMinutes = document.getElementById("available-minutes-hidden");
+  let currentUnit = "minutes";
+
+  function syncHiddenMinutes() {
+    const val = parseFloat(amountInput.value) || 0;
+    let minutes = val;
+    if (currentUnit === "hours") minutes = val * 60;
+    if (currentUnit === "days") minutes = val * DAILY_GOAL_MINUTES;
+    hiddenMinutes.value = Math.max(10, Math.round(minutes));
+  }
+
+  unitButtons.forEach((btn) => {
+    btn.addEventListener("click", () => {
+      unitButtons.forEach((b) => b.classList.remove("active"));
+      btn.classList.add("active");
+      currentUnit = btn.dataset.unit;
+      syncHiddenMinutes();
+    });
+  });
+  amountInput?.addEventListener("input", syncHiddenMinutes);
+  syncHiddenMinutes();
+
+  // ---- Per-item countdown timer ----
+  const activeTimers = {};
+
+  function formatTime(totalSeconds) {
+    const m = Math.floor(totalSeconds / 60).toString().padStart(2, "0");
+    const s = Math.floor(totalSeconds % 60).toString().padStart(2, "0");
+    return `${m}:${s}`;
+  }
+
+  document.querySelectorAll("[data-timer-start]").forEach((btn) => {
+    const itemId = btn.dataset.timerStart;
+    const badge = document.querySelector(`[data-timer-id="${itemId}"]`);
+    if (!badge) return;
+    const totalMinutes = parseInt(badge.dataset.timerMinutes, 10) || 0;
+
+    btn.addEventListener("click", () => {
+      if (activeTimers[itemId]) {
+        clearInterval(activeTimers[itemId].interval);
+        delete activeTimers[itemId];
+        badge.classList.remove("running");
+        btn.textContent = "▶";
+        return;
+      }
+
+      let remaining = totalMinutes * 60;
+      badge.classList.add("running");
+      btn.textContent = "⏸";
+      badge.textContent = formatTime(remaining);
+
+      const interval = setInterval(() => {
+        remaining -= 1;
+        if (remaining <= 0) {
+          clearInterval(interval);
+          delete activeTimers[itemId];
+          badge.classList.remove("running");
+          badge.textContent = "Done!";
+          btn.textContent = "▶";
+          if ("Notification" in window && Notification.permission === "granted") {
+            new Notification("StudyMate AI", { body: "Time's up! Take a moment before the next topic." });
+          } else {
+            alert("⏰ Time's up for this topic!");
+          }
+          return;
+        }
+        badge.textContent = formatTime(remaining);
+      }, 1000);
+
+      activeTimers[itemId] = { interval };
+    });
+  });
+
+  if ("Notification" in window && Notification.permission === "default") {
+    Notification.requestPermission();
+  }
+</script>
 {% endblock %}
