@@ -45,6 +45,40 @@ def calculate_completion(topics):
     return round((completed / total) * 100, 1)
 
 
+def interleave_breaks(items, break_every_minutes=50, break_length=10):
+    """Insert short breaks into a plan after roughly every `break_every_minutes`
+    of continuous study, Pomodoro-style. `items` is a list of dicts with
+    topic_id/allocated_minutes/order_index (as produced by the AI planner or
+    greedy_plan). Returns a new list with break entries interleaved."""
+    result = []
+    continuous = 0
+    order_index = 0
+
+    for item in items:
+        result.append({
+            "topic_id": item["topic_id"],
+            "allocated_minutes": item["allocated_minutes"],
+            "order_index": order_index,
+            "is_break": False,
+            "label": None,
+        })
+        order_index += 1
+        continuous += item["allocated_minutes"]
+
+        if continuous >= break_every_minutes:
+            result.append({
+                "topic_id": None,
+                "allocated_minutes": break_length,
+                "order_index": order_index,
+                "is_break": True,
+                "label": "Short break ☕",
+            })
+            order_index += 1
+            continuous = 0
+
+    return result
+
+
 def week_range(anchor=None):
     anchor = anchor or date.today()
     start = anchor - timedelta(days=anchor.weekday())
