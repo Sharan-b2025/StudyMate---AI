@@ -20,7 +20,9 @@ class StudyPlanItem(db.Model):
 
     id = db.Column(db.Integer, primary_key=True)
     plan_id = db.Column(db.Integer, db.ForeignKey("study_plans.id"), nullable=False)
-    topic_id = db.Column(db.Integer, db.ForeignKey("topics.id"), nullable=False)
+    topic_id = db.Column(db.Integer, db.ForeignKey("topics.id"), nullable=True)
     allocated_minutes = db.Column(db.Integer, nullable=False)
     order_index = db.Column(db.Integer, default=0)
     is_done = db.Column(db.Boolean, default=False)
+    is_break = db.Column(db.Boolean, default=False)
+    label = db.Column(db.String(120))  # used for break items, e.g. "Short break"
