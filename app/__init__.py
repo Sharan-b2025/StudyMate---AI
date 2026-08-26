@@ -28,6 +28,7 @@ def create_app(config_object="app.config.Config"):
     from .blueprints.planner.routes import planner_bp
     from .blueprints.quiz.routes import quiz_bp
     from .blueprints.chat.routes import chat_bp
+    from .blueprints.coach.routes import coach_bp
     from .blueprints.api.routes import api_bp
 
     app.register_blueprint(auth_bp)
@@ -36,6 +37,7 @@ def create_app(config_object="app.config.Config"):
     app.register_blueprint(planner_bp)
     app.register_blueprint(quiz_bp)
     app.register_blueprint(chat_bp)
+    app.register_blueprint(coach_bp)
     app.register_blueprint(api_bp, url_prefix="/api")
 
     upload_dir = app.config.get("UPLOAD_FOLDER")
