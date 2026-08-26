@@ -46,6 +46,9 @@
       <h3>Topics</h3>
       <button id="extract-btn" class="btn btn-primary btn-sm">🧩 Extract topics</button>
     </div>
+    {% if topics %}
+    <p class="text-muted mb-2" style="font-size:12px;">The colored badge shows <strong>importance</strong> — how central this topic is to the material — not difficulty.</p>
+    {% endif %}
     <div id="topics-output">
       {% if topics %}
         {% for t in topics %}
@@ -56,12 +59,15 @@
               <div class="text-muted" style="font-size:12px;">{{ t.estimated_minutes }} min</div>
             </div>
             <div class="flex items-center gap-1">
-              <span class="badge badge-{{ t.importance }}">{{ t.importance }}</span>
+              <span class="badge badge-{{ t.importance }}" title="Importance: how central this topic is — not difficulty">{{ t.importance }}</span>
               <span class="text-muted" style="font-size:12px;">▾</span>
             </div>
           </div>
           <div class="topic-panel" id="topic-panel-{{ t.id }}" style="display:none;padding:0 0 16px;">
-            <button class="btn btn-primary btn-sm topic-simplify-btn" data-topic-id="{{ t.id }}">✨ Simplify this topic</button>
+            <div class="flex gap-2" style="flex-wrap:wrap;">
+              <button class="btn btn-primary btn-sm topic-simplify-btn" data-topic-id="{{ t.id }}">✨ Simplify this topic</button>
+              <a href="{{ url_for('coach.index', topic_id=t.id) }}" class="btn btn-ghost btn-sm">🎓 Ask AI Coach about this</a>
+            </div>
             <div class="topic-notes mt-2" id="topic-notes-{{ t.id }}" style="font-size:13px;white-space:pre-wrap;line-height:1.7;">
               {{ t.simplified_content or "" }}
             </div>
