@@ -6,6 +6,7 @@ document.addEventListener("DOMContentLoaded", () => {
   const thread = document.getElementById("coach-thread");
   const micBtn = document.getElementById("mic-btn");
   const voiceReplyToggle = document.getElementById("voice-reply-toggle");
+  const autoListenToggle = document.getElementById("auto-listen-toggle");
   if (!form) return;
 
   thread.scrollTop = thread.scrollHeight;
@@ -28,6 +29,20 @@ document.addEventListener("DOMContentLoaded", () => {
     return wrap;
   }
 
+  function errorBubbleWithRetry(message, retryFn) {
+    const wrap = document.createElement("div");
+    wrap.className = "chat-bubble assistant";
+    wrap.innerHTML = `<div class="bubble-inner">⚠️ ${escapeHtml(message)}<br>
+      <button type="button" class="btn btn-ghost btn-sm mt-1" style="font-size:12px;">Retry</button></div>`;
+    wrap.querySelector("button").addEventListener("click", () => {
+      wrap.remove();
+      retryFn();
+    });
+    thread.appendChild(wrap);
+    thread.scrollTop = thread.scrollHeight;
+    return wrap;
+  }
+
   function escapeHtml(str) {
     const div = document.createElement("div");
     div.textContent = str;
@@ -42,14 +57,23 @@ document.addEventListener("DOMContentLoaded", () => {
     return safe;
   }
 
-  function speak(text) {
-    if (!voiceReplyToggle || !voiceReplyToggle.checked) return;
-    if (!("speechSynthesis" in window)) return;
+  function speak(text, onDone) {
+    if (!voiceReplyToggle || !voiceReplyToggle.checked) {
+      if (onDone) onDone();
+      return;
+    }
+    if (!("speechSynthesis" in window)) {
+      if (onDone) onDone();
+      return;
+    }
     window.speechSynthesis.cancel();
     const utter = new SpeechSynthesisUtterance(text.replace(/\*\*/g, ""));
     utter.rate = 1.0;
     micBtn.classList.add("speaking");
-    utter.onend = () => micBtn.classList.remove("speaking");
+    utter.onend = () => {
+      micBtn.classList.remove("speaking");
+      if (onDone) onDone();
+    };
     window.speechSynthesis.speak(utter);
   }
 
@@ -68,10 +92,16 @@ document.addEventListener("DOMContentLoaded", () => {
       typing.remove();
       if (!res.ok) throw new Error(data.error || "Something went wrong");
       bubble("assistant", renderMarkdownish(data.reply));
-      speak(data.reply);
+      speak(data.reply, () => {
+        // Auto-listen: once the reply finishes (or voice reply is off),
+        // automatically reopen the mic for a hands-free conversation loop.
+        if (autoListenToggle && autoListenToggle.checked) {
+          startListening();
+        }
+      });
     } catch (err) {
       typing.remove();
-      bubble("assistant", `⚠️ ${escapeHtml(err.message)}`);
+      errorBubbleWithRetry(err.message, () => sendMessage(message));
     }
   }
 
@@ -88,20 +118,30 @@ document.addEventListener("DOMContentLoaded", () => {
 
   // ---- Voice input (Web Speech API) ----
   const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+  let recognition = null;
+  let listening = false;
+
+  function startListening() {
+    if (!recognition || listening) return;
+    try {
+      recognition.start();
+    } catch (e) {
+      // recognition already starting/running — ignore
+    }
+  }
+
   if (SpeechRecognition && micBtn) {
-    const recognition = new SpeechRecognition();
+    recognition = new SpeechRecognition();
     recognition.continuous = false;
     recognition.interimResults = false;
     recognition.lang = "en-US";
-
-    let listening = false;
 
     micBtn.addEventListener("click", () => {
       if (listening) {
         recognition.stop();
         return;
       }
-      recognition.start();
+      startListening();
     });
 
     recognition.onstart = () => {
@@ -115,16 +155,21 @@ document.addEventListener("DOMContentLoaded", () => {
     recognition.onerror = () => {
       listening = false;
       micBtn.classList.remove("active");
+      // Auto-listen shouldn't retry forever on repeated errors (e.g. mic
+      // permission denied) — user can always tap the mic manually again.
+      if (autoListenToggle) autoListenToggle.checked = false;
     };
     recognition.onresult = (event) => {
       const transcript = event.results[0][0].transcript;
-      input.value = transcript;
       sendMessage(transcript);
-      input.value = "";
     };
   } else if (micBtn) {
     micBtn.disabled = true;
     micBtn.title = "Voice input isn't supported in this browser";
     micBtn.style.opacity = "0.4";
+    if (autoListenToggle) {
+      autoListenToggle.disabled = true;
+      autoListenToggle.title = "Voice input isn't supported in this browser";
+    }
   }
 });
