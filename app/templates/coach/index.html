@@ -40,10 +40,16 @@
       <h2>Teaching: {{ topic.title }}</h2>
       <span class="badge badge-{{ topic.importance }}" style="margin-top:6px;">{{ topic.importance }} importance</span>
     </div>
-    <label class="flex items-center gap-1" style="font-size:13px;color:var(--text-secondary);margin:0;cursor:pointer;">
-      <input type="checkbox" id="voice-reply-toggle" style="width:auto;">
-      🔊 Read replies aloud
-    </label>
+    <div class="flex items-center gap-3" style="flex-wrap:wrap;">
+      <label class="flex items-center gap-1" style="font-size:13px;color:var(--text-secondary);margin:0;cursor:pointer;">
+        <input type="checkbox" id="voice-reply-toggle" style="width:auto;">
+        🔊 Read replies aloud
+      </label>
+      <label class="flex items-center gap-1" style="font-size:13px;color:var(--text-secondary);margin:0;cursor:pointer;">
+        <input type="checkbox" id="auto-listen-toggle" style="width:auto;">
+        🔁 Auto-listen (hands-free)
+      </label>
+    </div>
   </div>
 
   <div class="coach-thread" id="coach-thread">
