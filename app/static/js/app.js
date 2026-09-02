@@ -23,6 +23,23 @@ async function postJSON(url, data) {
   return payload;
 }
 
+// ---- Skeleton loaders & retry banners, shared across pages that make
+// AI calls (materials, quiz, planner). Keeps "waiting on AI" states
+// consistent instead of a blank screen or a stuck button label. ----
+function showSkeleton(el, lines = 4) {
+  if (!el) return;
+  el.innerHTML = Array.from({ length: lines }, () => '<div class="skeleton-line"></div>').join("");
+}
+
+function showRetryBanner(el, message, retryFn) {
+  if (!el) return;
+  el.innerHTML = `<div class="retry-banner">
+    <span>⚠️ ${message}</span>
+    <button type="button" class="btn btn-ghost btn-sm" data-retry-btn>Retry</button>
+  </div>`;
+  el.querySelector("[data-retry-btn]").addEventListener("click", retryFn);
+}
+
 document.addEventListener("DOMContentLoaded", () => {
   autoDismissFlashes();
 
