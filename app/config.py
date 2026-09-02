@@ -32,7 +32,16 @@ class Config:
     # AI provider abstraction
     AI_PROVIDER = os.environ.get("AI_PROVIDER", "gemini")
     GEMINI_API_KEY = os.environ.get("GEMINI_API_KEY", "")
-    GEMINI_MODEL = os.environ.get("GEMINI_MODEL", "gemini-3.5-flash")
+    GEMINI_MODEL = os.environ.get("GEMINI_MODEL", "gemini-2.5-flash")
     OPENAI_API_KEY = os.environ.get("OPENAI_API_KEY", "")
 
     TESSERACT_CMD = os.environ.get("TESSERACT_CMD", "")
+
+    # Optional SMTP for password-reset emails. If unset, reset links are
+    # shown directly on screen instead (safe fallback, no email required).
+    MAIL_SERVER = os.environ.get("MAIL_SERVER", "")
+    MAIL_PORT = int(os.environ.get("MAIL_PORT", 587))
+    MAIL_USERNAME = os.environ.get("MAIL_USERNAME", "")
+    MAIL_PASSWORD = os.environ.get("MAIL_PASSWORD", "")
+    MAIL_USE_TLS = os.environ.get("MAIL_USE_TLS", "1") == "1"
+    MAIL_FROM = os.environ.get("MAIL_FROM", "")
