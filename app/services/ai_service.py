@@ -14,8 +14,9 @@ Public functions (all return plain Python data, never raw API responses):
     simplify_notes(raw_text, style="simple") -> str
     extract_topics(raw_text) -> list[dict]
     generate_study_plan(topics, available_minutes) -> list[dict]
-    generate_quiz(raw_text, num_questions=5) -> list[dict]
+    generate_quiz(raw_text, num_questions=5, difficulty="medium") -> list[dict]
     chat_reply(history, user_message, context="") -> str
+    coach_reply(history, user_message, topic_title, context="") -> str
 """
 import json
 import os
@@ -164,10 +165,19 @@ Return ONLY a JSON array like:
     return _extract_json(result)
 
 
-def generate_quiz(raw_text, num_questions=5):
+DIFFICULTY_GUIDANCE = {
+    "easy": "Keep questions straightforward — test basic recall and definitions. Avoid tricky wording.",
+    "medium": "Mix recall with light application — some questions should require connecting two ideas.",
+    "hard": "Test deep understanding and application — use scenario-based questions, subtle distractors, and multi-step reasoning.",
+}
+
+
+def generate_quiz(raw_text, num_questions=5, difficulty="medium"):
     text = _clean(raw_text)[:100000]
+    guidance = DIFFICULTY_GUIDANCE.get(difficulty, DIFFICULTY_GUIDANCE["medium"])
     prompt = f"""Create a {num_questions}-question multiple choice quiz from the study
-material below. Cover the most important concepts.
+material below. Cover the most important concepts. Difficulty: {difficulty}.
+{guidance}
 
 Return ONLY a JSON array like:
 [{{
@@ -187,13 +197,15 @@ MATERIAL:
     return _extract_json(result)
 
 
-def generate_quiz_for_topic(topic_title, material_text, num_questions=5):
+def generate_quiz_for_topic(topic_title, material_text, num_questions=5, difficulty="medium"):
     """Create a quiz focused on ONE topic only, using the full material for
     context so every question stays accurate and grounded."""
     text = _clean(material_text)[:100000]
+    guidance = DIFFICULTY_GUIDANCE.get(difficulty, DIFFICULTY_GUIDANCE["medium"])
     prompt = f"""Below is the FULL study material for a course. Create a
 {num_questions}-question multiple choice quiz that tests ONLY the topic
-"{topic_title}". Ignore unrelated sections of the material.
+"{topic_title}". Ignore unrelated sections of the material. Difficulty: {difficulty}.
+{guidance}
 
 Return ONLY a JSON array like:
 [{{
