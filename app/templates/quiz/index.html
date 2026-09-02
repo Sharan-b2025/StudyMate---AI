@@ -4,10 +4,11 @@
 
 {% block content %}
 <div class="grid-2">
-  <div class="card fade-up">
+  <div class="card fade-up" id="quiz-generate-card">
     <h3 class="mb-2">Generate a new quiz</h3>
+    <div id="quiz-retry-banner"></div>
     {% if materials %}
-    <form method="POST" action="{{ url_for('quiz.generate') }}">
+    <form method="POST" action="{{ url_for('quiz.generate') }}" id="quiz-generate-form">
       <div class="field">
         <label>From material</label>
         <select name="material_id" id="material-select" required>
@@ -23,8 +24,16 @@
         </select>
       </div>
       <div class="field">
+        <label>Difficulty</label>
+        <select name="difficulty" id="difficulty-select">
+          <option value="easy">Easy — basic recall</option>
+          <option value="medium" selected>Medium — recall + application</option>
+          <option value="hard">Hard — deep understanding</option>
+        </select>
+      </div>
+      <div class="field">
         <label>Number of questions</label>
-        <input type="number" name="num_questions" value="5" min="3" max="15">
+        <input type="number" name="num_questions" id="num-questions-input" value="5" min="3" max="15">
       </div>
       <button type="submit" class="btn btn-primary btn-block">🧠 Generate quiz</button>
     </form>
@@ -56,7 +65,7 @@
     <div class="flex justify-between items-center" style="padding:14px 0;border-bottom:1px solid var(--border-subtle);">
       <div>
         <div style="font-weight:600;font-size:14px;">{{ q.title }}</div>
-        <div class="text-muted" style="font-size:12px;">{{ q.questions.count() }} questions · {{ q.created_at.strftime('%b %d, %Y') }}</div>
+        <div class="text-muted" style="font-size:12px;">{{ q.questions.count() }} questions · {{ q.difficulty|default('medium')|capitalize }} · {{ q.created_at.strftime('%b %d, %Y') }}</div>
       </div>
       <a href="{{ url_for('quiz.take', quiz_id=q.id) }}" class="btn btn-ghost btn-sm">Take quiz →</a>
     </div>
@@ -70,6 +79,8 @@
 
 {% block extra_js %}
 <script>
+  const STORAGE_KEY = "studymate_last_quiz_generate";
+
   // Topics grouped by material, rendered server-side so the topic dropdown
   // can repopulate instantly without another request.
   const topicsByMaterial = {{ topics_by_material | tojson }};
@@ -91,5 +102,57 @@
 
   document.getElementById("material-select")?.addEventListener("change", refreshTopicOptions);
   refreshTopicOptions();
+
+  // On submit: remember the settings (for a one-click retry if generation
+  // fails) and swap the form to a loading skeleton while we wait.
+  document.getElementById("quiz-generate-form")?.addEventListener("submit", (e) => {
+    const form = e.target;
+    const payload = {
+      material_id: form.material_id.value,
+      topic_id: form.topic_id.value,
+      difficulty: form.difficulty.value,
+      num_questions: form.num_questions.value,
+    };
+    sessionStorage.setItem(STORAGE_KEY, JSON.stringify(payload));
+
+    const card = document.getElementById("quiz-generate-card");
+    card.innerHTML = '<h3 class="mb-2">Generating your quiz…</h3>' +
+      '<div class="skeleton-line"></div><div class="skeleton-line"></div>' +
+      '<div class="skeleton-line"></div><div class="skeleton-line"></div>';
+  });
+
+  function submitStoredRetry(payload) {
+    const f = document.createElement("form");
+    f.method = "POST";
+    f.action = "{{ url_for('quiz.generate') }}";
+    Object.entries(payload).forEach(([k, v]) => {
+      const input = document.createElement("input");
+      input.type = "hidden"; input.name = k; input.value = v;
+      f.appendChild(input);
+    });
+    document.body.appendChild(f);
+    f.submit();
+  }
+
+  // If the last attempt failed (flash "error"), offer a one-click retry
+  // using the exact same settings instead of making the user redo the form.
+  {% with messages = get_flashed_messages(with_categories=true) %}
+    {% for category, message in messages %}
+      {% if category == "error" %}
+        (function() {
+          const stored = sessionStorage.getItem(STORAGE_KEY);
+          const banner = document.getElementById("quiz-retry-banner");
+          if (!stored || !banner) return;
+          const payload = JSON.parse(stored);
+          banner.innerHTML = '<div class="retry-banner mb-3">' +
+            '<span>Quiz generation failed — retry with the same settings?</span>' +
+            '<button type="button" class="btn btn-ghost btn-sm" id="quiz-retry-action">Retry</button></div>';
+          document.getElementById("quiz-retry-action").addEventListener("click", () => submitStoredRetry(payload));
+        })();
+      {% elif category == "success" %}
+        sessionStorage.removeItem(STORAGE_KEY);
+      {% endif %}
+    {% endfor %}
+  {% endwith %}
 </script>
 {% endblock %}
