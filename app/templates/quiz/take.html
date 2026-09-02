@@ -24,3 +24,11 @@
   <button type="submit" class="btn btn-primary btn-block">Submit quiz</button>
 </form>
 {% endblock %}
+
+{% block extra_js %}
+<script>
+  // Reaching this page means the last quiz generation succeeded — clear the
+  // retry-settings snapshot so a stale retry banner never reappears.
+  sessionStorage.removeItem("studymate_last_quiz_generate");
+</script>
+{% endblock %}
