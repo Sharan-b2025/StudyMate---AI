@@ -10,6 +10,7 @@ class Quiz(db.Model):
     material_id = db.Column(db.Integer, db.ForeignKey("materials.id"), nullable=True)
     topic_id = db.Column(db.Integer, db.ForeignKey("topics.id"), nullable=True)
     title = db.Column(db.String(255), nullable=False)
+    difficulty = db.Column(db.String(10), default="medium")  # easy / medium / hard
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
 
     questions = db.relationship("QuizQuestion", backref="quiz", lazy="dynamic", cascade="all, delete-orphan")
