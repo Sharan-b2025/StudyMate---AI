@@ -7,6 +7,19 @@
 </form>
 {% endblock %}
 
+{% block extra_css %}
+<style>
+  @media print {
+    .sidebar, .topbar, #extract-btn, #simplify-btn, #notes-range-select,
+    #custom-range-inputs, .btn { display: none !important; }
+    .main-content { padding: 0 !important; }
+    .card { border: none !important; box-shadow: none !important; }
+    #notes-print-title { display: block !important; }
+  }
+  #notes-print-title { display: none; font-size: 20px; font-weight: 700; margin-bottom: 16px; }
+</style>
+{% endblock %}
+
 {% block content %}
 {% if material.status == 'failed' %}
   <div class="card" style="border-color:rgba(251,113,133,.4);">
@@ -15,10 +28,14 @@
   </div>
 {% else %}
 <div class="grid-2">
-  <div class="card fade-up">
+  <div class="card fade-up" id="notes-card">
+    <div id="notes-print-title">{{ material.original_filename }} — Simplified Notes</div>
     <div class="flex justify-between items-center mb-2">
       <h3>Simplified notes</h3>
-      <button id="simplify-btn" class="btn btn-primary btn-sm">✨ Simplify with AI</button>
+      <div class="flex gap-1">
+        <button id="simplify-btn" class="btn btn-primary btn-sm">✨ Simplify with AI</button>
+        <button id="export-notes-btn" class="btn btn-ghost btn-sm" title="Export as PDF">📄 Export</button>
+      </div>
     </div>
 
     {% if page_count > 1 %}
@@ -68,9 +85,7 @@
               <button class="btn btn-primary btn-sm topic-simplify-btn" data-topic-id="{{ t.id }}">✨ Simplify this topic</button>
               <a href="{{ url_for('coach.index', topic_id=t.id) }}" class="btn btn-ghost btn-sm">🎓 Ask AI Coach about this</a>
             </div>
-            <div class="topic-notes mt-2" id="topic-notes-{{ t.id }}" style="font-size:13px;white-space:pre-wrap;line-height:1.7;">
-              {{ t.simplified_content or "" }}
-            </div>
+            <div class="topic-notes mt-2" id="topic-notes-{{ t.id }}" style="font-size:13px;white-space:pre-wrap;line-height:1.7;">{{ t.simplified_content or "" }}</div>
           </div>
         </div>
         {% endfor %}
@@ -97,39 +112,56 @@
     if (customInputs) customInputs.style.display = e.target.value === "custom" ? "flex" : "none";
   });
 
-  document.getElementById("simplify-btn")?.addEventListener("click", async (e) => {
-    const btn = e.currentTarget;
+  function getSimplifyBody() {
     const select = document.getElementById("notes-range-select");
-    let body = {};
-
-    if (select && select.value !== "all") {
-      let start, end;
-      if (select.value === "custom") {
-        start = parseInt(document.getElementById("range-start").value, 10);
-        end = parseInt(document.getElementById("range-end").value, 10);
-      } else {
-        [start, end] = select.value.split("-").map(Number);
-      }
-      if (!start || !end || start > end) { alert("Enter a valid page range."); return; }
-      body = { start_page: start, end_page: end };
+    if (!select || select.value === "all") return {};
+    let start, end;
+    if (select.value === "custom") {
+      start = parseInt(document.getElementById("range-start").value, 10);
+      end = parseInt(document.getElementById("range-end").value, 10);
+    } else {
+      [start, end] = select.value.split("-").map(Number);
     }
+    if (!start || !end || start > end) return null;
+    return { start_page: start, end_page: end };
+  }
 
-    btn.disabled = true; btn.textContent = "Simplifying…";
+  async function runSimplify() {
+    const btn = document.getElementById("simplify-btn");
+    const output = document.getElementById("notes-output");
+    const body = getSimplifyBody();
+    if (body === null) { alert("Enter a valid page range."); return; }
+
+    btn.disabled = true;
+    showSkeleton(output, 5);
     try {
       const data = await postJSON(`/materials/${materialId}/simplify`, body);
-      document.getElementById("notes-output").innerText = data.notes;
-    } catch (err) { alert(err.message); }
-    btn.disabled = false; btn.textContent = "✨ Simplify with AI";
-  });
+      output.innerText = data.notes;
+    } catch (err) {
+      showRetryBanner(output, err.message, runSimplify);
+    }
+    btn.disabled = false;
+  }
+  document.getElementById("simplify-btn")?.addEventListener("click", runSimplify);
 
-  document.getElementById("extract-btn")?.addEventListener("click", async (e) => {
-    const btn = e.currentTarget;
-    btn.disabled = true; btn.textContent = "Extracting…";
+  async function runExtractTopics() {
+    const btn = document.getElementById("extract-btn");
+    const output = document.getElementById("topics-output");
+    btn.disabled = true;
+    showSkeleton(output, 4);
     try {
-      const data = await postJSON(`/materials/${materialId}/extract-topics`, {});
+      await postJSON(`/materials/${materialId}/extract-topics`, {});
       window.location.reload();
-    } catch (err) { alert(err.message); }
-    btn.disabled = false; btn.textContent = "🧩 Extract topics";
+    } catch (err) {
+      showRetryBanner(output, err.message, runExtractTopics);
+      btn.disabled = false;
+    }
+  }
+  document.getElementById("extract-btn")?.addEventListener("click", runExtractTopics);
+
+  // Export simplified notes as PDF via the browser's print dialog
+  document.getElementById("export-notes-btn")?.addEventListener("click", () => {
+    window.print();
   });
 
   // Expand/collapse a topic to show its simplified notes
@@ -142,19 +174,21 @@
   });
 
   // Simplify a single topic (keeps every important point, just shortens/clarifies)
+  function runTopicSimplify(topicId, btn) {
+    const output = document.getElementById(`topic-notes-${topicId}`);
+    btn.disabled = true;
+    showSkeleton(output, 3);
+    postJSON(`/materials/topic/${topicId}/simplify`, {})
+      .then((data) => { output.innerText = data.notes; btn.disabled = false; })
+      .catch((err) => {
+        showRetryBanner(output, err.message, () => runTopicSimplify(topicId, btn));
+        btn.disabled = false;
+      });
+  }
   document.querySelectorAll(".topic-simplify-btn").forEach((btn) => {
-    btn.addEventListener("click", async (e) => {
+    btn.addEventListener("click", (e) => {
       e.stopPropagation();
-      const topicId = btn.dataset.topicId;
-      const output = document.getElementById(`topic-notes-${topicId}`);
-      btn.disabled = true; btn.textContent = "Simplifying…";
-      try {
-        const data = await postJSON(`/materials/topic/${topicId}/simplify`, {});
-        output.innerText = data.notes;
-      } catch (err) {
-        alert(err.message);
-      }
-      btn.disabled = false; btn.textContent = "✨ Simplify this topic";
+      runTopicSimplify(btn.dataset.topicId, btn);
     });
   });
 </script>
