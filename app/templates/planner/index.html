@@ -20,13 +20,23 @@
     min-width: 58px; text-align: center;
   }
   .timer-badge.running { background: rgba(52,211,153,.15); color: var(--emerald); }
+
+  @media print {
+    .sidebar, .topbar, #plan-generate-card, #this-week-card, #all-topics-card,
+    .btn, [data-plan-item-toggle], [data-timer-start] { display: none !important; }
+    .main-content { padding: 0 !important; }
+    .card { border: none !important; box-shadow: none !important; }
+    #plan-print-title { display: block !important; }
+  }
+  #plan-print-title { display: none; font-size: 20px; font-weight: 700; margin-bottom: 16px; }
 </style>
 {% endblock %}
 
 {% block content %}
 <div class="grid-2">
-  <div class="card fade-up">
+  <div class="card fade-up" id="plan-generate-card">
     <h3 class="mb-2">Generate an optimized plan</h3>
+    <div id="plan-retry-banner"></div>
     <form method="POST" action="{{ url_for('planner.generate') }}" id="plan-form">
       <div class="field">
         <label>How much time do you have today?</label>
@@ -43,10 +53,10 @@
       </div>
       <div class="field">
         <label>Date</label>
-        <input type="date" name="plan_date" value="{{ todays_plan.plan_date.isoformat() if todays_plan else '' }}" placeholder="Today">
+        <input type="date" name="plan_date" id="plan-date-input" value="{{ todays_plan.plan_date.isoformat() if todays_plan else '' }}" placeholder="Today">
       </div>
       <label class="flex items-center gap-2 mb-3" style="font-weight:500;font-size:14px;cursor:pointer;">
-        <input type="checkbox" name="include_breaks" checked style="width:18px;height:18px;">
+        <input type="checkbox" name="include_breaks" id="include-breaks-input" checked style="width:18px;height:18px;">
         ☕ Include short breaks (Pomodoro-style, every ~50 minutes)
       </label>
       <button type="submit" class="btn btn-primary btn-block">⚡ Generate plan</button>
@@ -62,8 +72,12 @@
 </div>
 
 {% if todays_plan %}
-<div class="card mt-3 fade-up">
-  <h3 class="mb-2">Today's plan — {{ todays_plan.available_minutes }} minutes</h3>
+<div class="card mt-3 fade-up" id="todays-plan-card">
+  <div id="plan-print-title">Study Plan — {{ todays_plan.plan_date.strftime('%B %d, %Y') }}</div>
+  <div class="flex justify-between items-center mb-2">
+    <h3>Today's plan — {{ todays_plan.available_minutes }} minutes</h3>
+    <button id="export-plan-btn" class="btn btn-ghost btn-sm" title="Export as PDF">📄 Export</button>
+  </div>
   {% for item in todays_plan.items.order_by('order_index') %}
   <div class="plan-item-row flex items-center justify-between {{ 'done' if item.is_done }} {{ 'break-row' if item.is_break }}" style="padding:12px 0;border-bottom:1px solid var(--border-subtle);">
     <label class="flex items-center gap-2" style="margin:0;font-weight:500;">
@@ -86,7 +100,7 @@
 </div>
 {% endif %}
 
-<div class="card mt-3 fade-up">
+<div class="card mt-3 fade-up" id="this-week-card">
   <h3 class="mb-3">This week</h3>
   <div class="grid-3" style="grid-template-columns:repeat(7,1fr);gap:12px;">
     {% for d in week_days %}
@@ -104,7 +118,7 @@
   </div>
 </div>
 
-<div class="card mt-3 fade-up">
+<div class="card mt-3 fade-up" id="all-topics-card">
   <h3 class="mb-1">All topics</h3>
   <p class="text-muted mb-2" style="font-size:12px;">The colored badge shows <strong>importance</strong> — how central this topic is — not difficulty.</p>
   {% if topics %}
@@ -137,6 +151,7 @@
 {% block extra_js %}
 <script>
   const DAILY_GOAL_MINUTES = {{ current_user.daily_goal_minutes or 120 }};
+  const PLAN_STORAGE_KEY = "studymate_last_plan_generate";
 
   // ---- Unit toggle: minutes / hours / days -> always submits minutes ----
   const unitButtons = document.querySelectorAll(".unit-btn");
@@ -162,6 +177,59 @@
   });
   amountInput?.addEventListener("input", syncHiddenMinutes);
   syncHiddenMinutes();
+
+  // On submit: remember settings (for retry) and show a loading skeleton
+  // while the AI plan is generated (this can take several seconds).
+  document.getElementById("plan-form")?.addEventListener("submit", () => {
+    const payload = {
+      available_minutes: hiddenMinutes.value,
+      plan_date: document.getElementById("plan-date-input").value,
+      include_breaks: document.getElementById("include-breaks-input").checked ? "on" : "",
+    };
+    sessionStorage.setItem(PLAN_STORAGE_KEY, JSON.stringify(payload));
+
+    const card = document.getElementById("plan-generate-card");
+    card.innerHTML = '<h3 class="mb-2">Generating your optimized plan…</h3>' +
+      '<div class="skeleton-line"></div><div class="skeleton-line"></div>' +
+      '<div class="skeleton-line"></div><div class="skeleton-line"></div>';
+  });
+
+  function submitStoredPlanRetry(payload) {
+    const f = document.createElement("form");
+    f.method = "POST";
+    f.action = "{{ url_for('planner.generate') }}";
+    Object.entries(payload).forEach(([k, v]) => {
+      const input = document.createElement("input");
+      input.type = "hidden"; input.name = k; input.value = v;
+      f.appendChild(input);
+    });
+    document.body.appendChild(f);
+    f.submit();
+  }
+
+  {% with messages = get_flashed_messages(with_categories=true) %}
+    {% for category, message in messages %}
+      {% if category == "error" %}
+        (function() {
+          const stored = sessionStorage.getItem(PLAN_STORAGE_KEY);
+          const banner = document.getElementById("plan-retry-banner");
+          if (!stored || !banner) return;
+          const payload = JSON.parse(stored);
+          banner.innerHTML = '<div class="retry-banner mb-3">' +
+            '<span>Plan generation failed — retry with the same settings?</span>' +
+            '<button type="button" class="btn btn-ghost btn-sm" id="plan-retry-action">Retry</button></div>';
+          document.getElementById("plan-retry-action").addEventListener("click", () => submitStoredPlanRetry(payload));
+        })();
+      {% elif category == "success" %}
+        sessionStorage.removeItem(PLAN_STORAGE_KEY);
+      {% endif %}
+    {% endfor %}
+  {% endwith %}
+
+  // Export today's plan as PDF via the browser's print dialog
+  document.getElementById("export-plan-btn")?.addEventListener("click", () => {
+    window.print();
+  });
 
   // ---- Per-item countdown timer ----
   const activeTimers = {};
