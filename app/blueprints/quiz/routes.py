@@ -57,6 +57,9 @@ def generate():
     material_id = request.form.get("material_id")
     topic_id = request.form.get("topic_id") or None
     num_questions = int(request.form.get("num_questions", 5) or 5)
+    difficulty = request.form.get("difficulty", "medium")
+    if difficulty not in ("easy", "medium", "hard"):
+        difficulty = "medium"
 
     material = Material.query.filter_by(id=material_id, user_id=current_user.id).first_or_404()
     if not material.raw_text:
@@ -69,16 +72,22 @@ def generate():
 
     try:
         if topic:
-            questions_data = ai_service.generate_quiz_for_topic(topic.title, material.raw_text, num_questions)
+            questions_data = ai_service.generate_quiz_for_topic(topic.title, material.raw_text, num_questions, difficulty)
         else:
-            questions_data = ai_service.generate_quiz(material.raw_text, num_questions)
+            questions_data = ai_service.generate_quiz(material.raw_text, num_questions, difficulty)
 
         if not questions_data:
             flash("The AI didn't return any questions. Try again.", "error")
             return redirect(url_for("quiz.index"))
 
         title = f"Quiz: {topic.title}" if topic else f"Quiz: {material.original_filename}"
-        quiz = Quiz(user_id=current_user.id, material_id=material.id, title=title)
+        quiz = Quiz(
+            user_id=current_user.id,
+            material_id=material.id,
+            topic_id=topic.id if topic else None,
+            title=title,
+            difficulty=difficulty,
+        )
         db.session.add(quiz)
         db.session.flush()
 
