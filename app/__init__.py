@@ -1,5 +1,5 @@
 import os
-from flask import Flask, render_template, redirect, url_for
+from flask import Flask, render_template, redirect, url_for, send_from_directory
 from flask_login import current_user
 from .extensions import db, login_manager, migrate, cors
 
@@ -29,6 +29,7 @@ def create_app(config_object="app.config.Config"):
     from .blueprints.quiz.routes import quiz_bp
     from .blueprints.chat.routes import chat_bp
     from .blueprints.coach.routes import coach_bp
+    from .blueprints.flashcards.routes import flashcards_bp
     from .blueprints.api.routes import api_bp
 
     app.register_blueprint(auth_bp)
@@ -38,6 +39,7 @@ def create_app(config_object="app.config.Config"):
     app.register_blueprint(quiz_bp)
     app.register_blueprint(chat_bp)
     app.register_blueprint(coach_bp)
+    app.register_blueprint(flashcards_bp)
     app.register_blueprint(api_bp, url_prefix="/api")
 
     upload_dir = app.config.get("UPLOAD_FOLDER")
@@ -53,6 +55,15 @@ def create_app(config_object="app.config.Config"):
         if current_user.is_authenticated:
             return redirect(url_for("dashboard.index"))
         return render_template("landing.html")
+
+    @app.route("/sw.js")
+    def service_worker():
+        # Served from root (not /static/) so its scope covers the whole app,
+        # not just the static folder.
+        response = send_from_directory(os.path.join(app.static_folder, "js"), "sw.js")
+        response.headers["Service-Worker-Allowed"] = "/"
+        response.headers["Cache-Control"] = "no-cache"
+        return response
 
     @app.errorhandler(404)
     def not_found(e):
