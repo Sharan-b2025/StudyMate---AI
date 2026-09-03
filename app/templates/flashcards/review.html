@@ -1,0 +1,132 @@
+{% extends "base.html" %}
+{% block title %}Review — StudyMate AI{% endblock %}
+{% block page_title %}Flashcard review{% endblock %}
+
+{% block extra_css %}
+<style>
+  .review-wrap { max-width: 560px; margin: 0 auto; }
+  .flip-card {
+    perspective: 1200px;
+    height: 320px;
+    margin-bottom: 24px;
+    cursor: pointer;
+  }
+  .flip-card-inner {
+    position: relative; width: 100%; height: 100%;
+    transition: transform 0.5s;
+    transform-style: preserve-3d;
+  }
+  .flip-card.flipped .flip-card-inner { transform: rotateY(180deg); }
+  .flip-face {
+    position: absolute; inset: 0;
+    backface-visibility: hidden;
+    border-radius: var(--radius-lg);
+    background: linear-gradient(180deg, var(--bg-panel) 0%, var(--bg-panel-2) 100%);
+    border: 1px solid var(--border-subtle);
+    display: flex; align-items: center; justify-content: center;
+    text-align: center; padding: 32px;
+    font-size: 19px; font-weight: 600; line-height: 1.5;
+  }
+  .flip-face.back { transform: rotateY(180deg); background: linear-gradient(180deg, rgba(139,92,246,.1), var(--bg-panel-2)); }
+  .flip-hint { text-align: center; color: var(--text-muted); font-size: 13px; margin-bottom: 20px; }
+  .rating-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px; }
+  .rating-btn { padding: 14px 8px; border-radius: var(--radius-sm); border: 1px solid var(--border-subtle); font-weight: 700; font-size: 13px; cursor: pointer; transition: transform .15s; }
+  .rating-btn:active { transform: scale(0.96); }
+  .rating-again { background: rgba(251,113,133,.12); color: var(--rose); }
+  .rating-hard { background: rgba(251,191,36,.12); color: var(--amber); }
+  .rating-good { background: rgba(99,102,241,.15); color: var(--indigo); }
+  .rating-easy { background: rgba(52,211,153,.12); color: var(--emerald); }
+  .review-progress { text-align: center; color: var(--text-muted); font-size: 13px; margin-bottom: 12px; }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="review-wrap">
+  {% if count == 0 %}
+  <div class="card empty-state">
+    <div style="font-size:40px;" class="mb-2">🎉</div>
+    <h3 class="mb-1">All caught up!</h3>
+    <p>No flashcards are due right now. Come back later or generate more.</p>
+    <a href="{{ url_for('flashcards.index') }}" class="btn btn-primary mt-3">Back to decks</a>
+  </div>
+  {% else %}
+  <div class="review-progress" id="progress-label">Card 1 of {{ count }}</div>
+  <div class="flip-card" id="flip-card">
+    <div class="flip-card-inner">
+      <div class="flip-face front" id="card-front"></div>
+      <div class="flip-face back" id="card-back"></div>
+    </div>
+  </div>
+  <div class="flip-hint" id="flip-hint">Click the card to reveal the answer</div>
+  <div class="rating-grid" id="rating-grid" style="display:none;">
+    <button class="rating-btn rating-again" data-quality="0">Again</button>
+    <button class="rating-btn rating-hard" data-quality="3">Hard</button>
+    <button class="rating-btn rating-good" data-quality="4">Good</button>
+    <button class="rating-btn rating-easy" data-quality="5">Easy</button>
+  </div>
+  <div id="session-done" class="card empty-state" style="display:none;">
+    <div style="font-size:40px;" class="mb-2">✅</div>
+    <h3 class="mb-1">Session complete!</h3>
+    <p>You reviewed all due cards.</p>
+    <a href="{{ url_for('flashcards.index') }}" class="btn btn-primary mt-3">Back to decks</a>
+  </div>
+  {% endif %}
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+  const CARDS = {{ cards_json | tojson }};
+  let index = 0;
+
+  const flipCard = document.getElementById("flip-card");
+  const frontEl = document.getElementById("card-front");
+  const backEl = document.getElementById("card-back");
+  const hintEl = document.getElementById("flip-hint");
+  const ratingGrid = document.getElementById("rating-grid");
+  const progressLabel = document.getElementById("progress-label");
+  const doneEl = document.getElementById("session-done");
+
+  function showCard() {
+    if (index >= CARDS.length) {
+      flipCard.style.display = "none";
+      hintEl.style.display = "none";
+      ratingGrid.style.display = "none";
+      progressLabel.style.display = "none";
+      doneEl.style.display = "block";
+      return;
+    }
+    const card = CARDS[index];
+    frontEl.textContent = card.front;
+    backEl.textContent = card.back;
+    flipCard.classList.remove("flipped");
+    ratingGrid.style.display = "none";
+    hintEl.style.display = "block";
+    progressLabel.textContent = `Card ${index + 1} of ${CARDS.length}`;
+  }
+
+  flipCard?.addEventListener("click", () => {
+    flipCard.classList.add("flipped");
+    hintEl.style.display = "none";
+    ratingGrid.style.display = "grid";
+  });
+
+  document.querySelectorAll("[data-quality]").forEach((btn) => {
+    btn.addEventListener("click", async (e) => {
+      e.stopPropagation();
+      const card = CARDS[index];
+      const quality = btn.dataset.quality;
+      try {
+        await postJSON(`/flashcards/${card.id}/review`, { quality: parseInt(quality, 10) });
+      } catch (err) {
+        // Non-fatal — still advance locally; the rating just won't be saved.
+        console.error(err);
+      }
+      index += 1;
+      showCard();
+    });
+  });
+
+  if (CARDS.length) showCard();
+</script>
+{% endblock %}
