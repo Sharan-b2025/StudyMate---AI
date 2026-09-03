@@ -17,6 +17,7 @@ Public functions (all return plain Python data, never raw API responses):
     generate_quiz(raw_text, num_questions=5, difficulty="medium") -> list[dict]
     chat_reply(history, user_message, context="") -> str
     coach_reply(history, user_message, topic_title, context="") -> str
+    generate_flashcards(topic_title, material_text, num_cards=10) -> list[dict]
 """
 import json
 import os
@@ -265,3 +266,27 @@ STUDENT: {user_message}
 
 Respond as the tutor:"""
     return _call(prompt, temperature=0.6)
+
+
+def generate_flashcards(topic_title, material_text, num_cards=10):
+    """Create front/back flashcard pairs for a topic, grounded in the full
+    material for accuracy. Good flashcards test one atomic fact each."""
+    text = _clean(material_text)[:100000]
+    prompt = f"""Below is the FULL study material for a course. Create
+{num_cards} flashcards that help a student memorize the key facts of the
+topic "{topic_title}".
+
+Rules:
+- Each flashcard tests ONE atomic fact, term, or concept — not multiple at once.
+- "front": a short question, term, or prompt.
+- "back": a short, precise answer (1-2 sentences max).
+- Cover the most important and commonly forgotten points for this topic.
+- Base every card strictly on the material below — never invent facts.
+
+Return ONLY a JSON array like:
+[{{"front": "...", "back": "..."}}]
+
+FULL STUDY MATERIAL:
+{text}"""
+    result = _call(prompt, temperature=0.4)
+    return _extract_json(result)
