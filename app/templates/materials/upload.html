@@ -15,21 +15,69 @@
   .dropzone.dragover { border-color: var(--violet); background: rgba(139,92,246,.06); }
   .dropzone input[type=file] { display: none; }
   .dz-icon { font-size: 44px; margin-bottom: 16px; }
+  .file-chip-list { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 16px; justify-content: center; }
+  .file-chip {
+    display: inline-flex; align-items: center; gap: 6px;
+    padding: 6px 12px; border-radius: var(--radius-full);
+    background: rgba(139,92,246,.1); border: 1px solid var(--border-subtle);
+    font-size: 12px; font-weight: 600;
+  }
 </style>
 {% endblock %}
 
 {% block content %}
 <div class="card fade-up" style="max-width:640px;margin:0 auto;">
   <h3 class="mb-1">Upload study material</h3>
-  <p class="text-secondary mb-3" style="font-size:14px;">Supported formats: PDF, DOCX, TXT, PNG, JPG (max 25MB)</p>
-  <form method="POST" enctype="multipart/form-data">
+  <p class="text-secondary mb-3" style="font-size:14px;">Supported formats: PDF, DOCX, TXT, PNG, JPG (max 25MB each) — select multiple files at once</p>
+  <form method="POST" enctype="multipart/form-data" id="upload-form">
     <label class="dropzone" data-dropzone for="file-input">
       <div class="dz-icon">📤</div>
-      <div style="font-weight:600;" data-filename>Click or drag a file here</div>
-      <div class="text-muted mt-1" style="font-size:13px;">PDF · DOCX · TXT · PNG · JPG</div>
-      <input id="file-input" type="file" name="file" accept=".pdf,.docx,.txt,.png,.jpg,.jpeg" required>
+      <div style="font-weight:600;" data-filename>Click or drag files here</div>
+      <div class="text-muted mt-1" style="font-size:13px;">PDF · DOCX · TXT · PNG · JPG — multiple files supported</div>
+      <div class="file-chip-list" id="file-chip-list"></div>
+      <input id="file-input" type="file" name="file" accept=".pdf,.docx,.txt,.png,.jpg,.jpeg" multiple required>
     </label>
-    <button type="submit" class="btn btn-primary btn-block mt-3">Upload & process</button>
+    <button type="submit" class="btn btn-primary btn-block mt-3" id="upload-submit-btn">Upload & process</button>
   </form>
 </div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+  const fileInput = document.getElementById("file-input");
+  const filenameLabel = document.querySelector("[data-filename]");
+  const chipList = document.getElementById("file-chip-list");
+  const submitBtn = document.getElementById("upload-submit-btn");
+  const form = document.getElementById("upload-form");
+
+  function renderFileChips(files) {
+    chipList.innerHTML = "";
+    if (!files.length) {
+      filenameLabel.textContent = "Click or drag files here";
+      return;
+    }
+    filenameLabel.textContent = files.length === 1
+      ? files[0].name
+      : `${files.length} files selected`;
+    Array.from(files).forEach((f) => {
+      const chip = document.createElement("span");
+      chip.className = "file-chip";
+      chip.textContent = f.name;
+      chipList.appendChild(chip);
+    });
+  }
+
+  fileInput?.addEventListener("change", () => renderFileChips(fileInput.files));
+
+  const dropzone = document.querySelector("[data-dropzone]");
+  dropzone?.addEventListener("drop", (e) => {
+    if (e.dataTransfer.files.length) renderFileChips(e.dataTransfer.files);
+  });
+
+  form?.addEventListener("submit", () => {
+    submitBtn.disabled = true;
+    const count = fileInput.files.length;
+    submitBtn.textContent = count > 1 ? `Uploading ${count} files…` : "Uploading…";
+  });
+</script>
 {% endblock %}
