@@ -23,44 +23,60 @@ def index():
 @login_required
 def upload():
     if request.method == "POST":
-        file = request.files.get("file")
-        if not file or file.filename == "":
-            flash("Please choose a file to upload.", "error")
+        files = [f for f in request.files.getlist("file") if f and f.filename]
+        if not files:
+            flash("Please choose at least one file to upload.", "error")
             return redirect(url_for("materials.upload"))
 
-        is_allowed, ext = file_processing.allowed_file(file.filename)
-        if not is_allowed:
-            flash("Unsupported file type. Use PDF, DOCX, TXT, PNG or JPG.", "error")
-            return redirect(url_for("materials.upload"))
+        succeeded = []
+        failed = []
 
-        safe_name = secure_filename(file.filename)
-        stored_name = f"{uuid.uuid4().hex}_{safe_name}"
-        filepath = os.path.join(current_app.config["UPLOAD_FOLDER"], stored_name)
-        file.save(filepath)
+        for file in files:
+            is_allowed, ext = file_processing.allowed_file(file.filename)
+            if not is_allowed:
+                failed.append(f"{file.filename} (unsupported type)")
+                continue
 
-        material = Material(
-            user_id=current_user.id,
-            filename=stored_name,
-            original_filename=safe_name,
-            file_type=ext,
-            status="processing",
-        )
-        db.session.add(material)
-        db.session.commit()
+            safe_name = secure_filename(file.filename)
+            stored_name = f"{uuid.uuid4().hex}_{safe_name}"
+            filepath = os.path.join(current_app.config["UPLOAD_FOLDER"], stored_name)
+            file.save(filepath)
 
-        raw_text, error = file_processing.extract_text(filepath, ext)
-        if error:
-            material.status = "failed"
-            material.error_message = error
+            material = Material(
+                user_id=current_user.id,
+                filename=stored_name,
+                original_filename=safe_name,
+                file_type=ext,
+                status="processing",
+            )
+            db.session.add(material)
             db.session.commit()
-            flash(f"Upload saved, but extraction failed: {error}", "error")
-            return redirect(url_for("materials.detail", material_id=material.id))
 
-        material.raw_text = raw_text
-        material.status = "ready"
-        db.session.commit()
-        flash("File uploaded and processed successfully!", "success")
-        return redirect(url_for("materials.detail", material_id=material.id))
+            raw_text, error = file_processing.extract_text(filepath, ext)
+            if error:
+                material.status = "failed"
+                material.error_message = error
+                db.session.commit()
+                failed.append(f"{safe_name} ({error})")
+                continue
+
+            material.raw_text = raw_text
+            material.status = "ready"
+            db.session.commit()
+            succeeded.append(material)
+
+        if succeeded and not failed:
+            if len(succeeded) == 1:
+                flash("File uploaded and processed successfully!", "success")
+                return redirect(url_for("materials.detail", material_id=succeeded[0].id))
+            flash(f"All {len(succeeded)} files uploaded and processed successfully!", "success")
+        elif succeeded and failed:
+            flash(f"{len(succeeded)} file(s) uploaded successfully.", "success")
+            flash(f"{len(failed)} file(s) failed: {'; '.join(failed)}", "error")
+        else:
+            flash(f"All uploads failed: {'; '.join(failed)}", "error")
+
+        return redirect(url_for("materials.index"))
 
     return render_template("materials/upload.html")
 
