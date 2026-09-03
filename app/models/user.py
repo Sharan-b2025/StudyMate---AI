@@ -22,6 +22,7 @@ class User(UserMixin, db.Model):
     plans = db.relationship("StudyPlan", backref="owner", lazy="dynamic", cascade="all, delete-orphan")
     quizzes = db.relationship("Quiz", backref="owner", lazy="dynamic", cascade="all, delete-orphan")
     chat_messages = db.relationship("ChatMessage", backref="owner", lazy="dynamic", cascade="all, delete-orphan")
+    flashcards = db.relationship("Flashcard", backref="owner", lazy="dynamic", cascade="all, delete-orphan")
 
     def set_password(self, password):
         self.password_hash = generate_password_hash(password)
