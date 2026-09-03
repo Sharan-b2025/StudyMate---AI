@@ -50,6 +50,38 @@
 
 html { scroll-behavior: smooth; }
 
+/* ---------- Light theme override ----------
+   Toggled via [data-theme="light"] on <html>. Accent colors (violet, cyan,
+   pink, etc.) stay the same in both themes — only surfaces/text change. */
+html[data-theme="light"] {
+  --bg-void: #f6f7fb;
+  --bg-deep: #eef0f7;
+  --bg-panel: #ffffff;
+  --bg-panel-2: #f8f9fc;
+  --bg-panel-hover: #eef0f7;
+  --border-subtle: rgba(15, 15, 35, 0.08);
+  --border-strong: rgba(15, 15, 35, 0.14);
+
+  --text-primary: #14141f;
+  --text-secondary: #52546b;
+  --text-muted: #8a8ca3;
+
+  --grad-mesh: radial-gradient(at 20% 0%, rgba(139, 92, 246, 0.12) 0px, transparent 50%),
+               radial-gradient(at 80% 0%, rgba(34, 211, 238, 0.10) 0px, transparent 50%),
+               radial-gradient(at 50% 100%, rgba(236, 72, 153, 0.06) 0px, transparent 50%);
+
+  --shadow-glow: 0 0 40px rgba(139, 92, 246, 0.15);
+  --shadow-soft: 0 8px 30px rgba(20, 20, 40, 0.08);
+  --shadow-lift: 0 20px 60px rgba(20, 20, 40, 0.12);
+}
+html[data-theme="light"] .btn-ghost { background: rgba(15,15,35,0.03); }
+html[data-theme="light"] .btn-ghost:hover { background: rgba(15,15,35,0.06); }
+html[data-theme="light"] input, html[data-theme="light"] textarea, html[data-theme="light"] select {
+  background: rgba(15,15,35,0.02);
+}
+html[data-theme="light"] .glass { background: rgba(255,255,255,0.7); }
+html[data-theme="light"] ::-webkit-scrollbar-thumb { border-color: var(--bg-void); }
+
 body {
   background: var(--bg-void);
   background-image: var(--grad-mesh);
