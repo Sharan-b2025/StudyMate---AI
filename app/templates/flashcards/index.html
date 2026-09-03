@@ -1,0 +1,140 @@
+{% extends "base.html" %}
+{% block title %}Flashcards — StudyMate AI{% endblock %}
+{% block page_title %}Flashcards{% endblock %}
+{% block topbar_actions %}
+{% if total_due > 0 %}
+<a href="{{ url_for('flashcards.review') }}" class="btn btn-primary btn-sm">📚 Study {{ total_due }} due card{{ 's' if total_due != 1 }}</a>
+{% endif %}
+{% endblock %}
+
+{% block content %}
+<div class="grid-2">
+  <div class="card fade-up" id="flashcard-generate-card">
+    <h3 class="mb-2">Generate flashcards for a topic</h3>
+    <div id="flashcard-retry-banner"></div>
+    {% if materials %}
+    <form method="POST" action="{{ url_for('flashcards.generate') }}" id="flashcard-generate-form">
+      <div class="field">
+        <label>From material</label>
+        <select name="material_id" id="material-select" required>
+          {% for m in materials %}
+          <option value="{{ m.id }}">{{ m.original_filename }}</option>
+          {% endfor %}
+        </select>
+      </div>
+      <div class="field">
+        <label>Topic</label>
+        <select name="topic_id" id="topic-select" required></select>
+      </div>
+      <div class="field">
+        <label>Number of cards</label>
+        <input type="number" name="num_cards" value="10" min="5" max="25">
+      </div>
+      <button type="submit" class="btn btn-primary btn-block">✨ Generate flashcards</button>
+    </form>
+    {% else %}
+    <div class="empty-state">Upload and process a material first.</div>
+    {% endif %}
+  </div>
+
+  <div class="card fade-up">
+    <h3 class="mb-2">Today's review</h3>
+    <div class="stat-value gradient-text">{{ total_due }}</div>
+    <div class="stat-label">cards due right now</div>
+    {% if total_due > 0 %}
+    <a href="{{ url_for('flashcards.review') }}" class="btn btn-primary btn-block mt-2">Start review session</a>
+    {% else %}
+    <p class="text-muted mt-2" style="font-size:13px;">Nothing due — generate more cards or come back later.</p>
+    {% endif %}
+  </div>
+</div>
+
+<div class="card mt-3 fade-up">
+  <h3 class="mb-3">Your decks</h3>
+  {% if deck_summaries %}
+  <div style="display:grid;gap:2px;">
+    {% for deck in deck_summaries %}
+    <div class="flex justify-between items-center" style="padding:14px 0;border-bottom:1px solid var(--border-subtle);">
+      <div>
+        <div style="font-weight:600;font-size:14px;">{{ deck.topic.title }}</div>
+        <div class="text-muted" style="font-size:12px;">{{ deck.total }} card{{ 's' if deck.total != 1 }} total</div>
+      </div>
+      <div class="flex items-center gap-2">
+        {% if deck.due > 0 %}
+        <span class="badge badge-high">{{ deck.due }} due</span>
+        <a href="{{ url_for('flashcards.review', topic_id=deck.topic.id) }}" class="btn btn-ghost btn-sm">Study →</a>
+        {% else %}
+        <span class="badge badge-completed">Up to date</span>
+        {% endif %}
+      </div>
+    </div>
+    {% endfor %}
+  </div>
+  {% else %}
+  <div class="empty-state">No flashcard decks yet. Generate your first one above.</div>
+  {% endif %}
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+  const topicsByMaterial = {{ topics_by_material | tojson }};
+
+  function refreshTopicOptions() {
+    const materialSelect = document.getElementById("material-select");
+    const topicSelect = document.getElementById("topic-select");
+    if (!materialSelect || !topicSelect) return;
+    const topics = topicsByMaterial[materialSelect.value] || [];
+    topicSelect.innerHTML = topics.length
+      ? topics.map((t) => `<option value="${t.id}">${t.title}</option>`).join("")
+      : '<option value="">No topics extracted yet</option>';
+  }
+  document.getElementById("material-select")?.addEventListener("change", refreshTopicOptions);
+  refreshTopicOptions();
+
+  const STORAGE_KEY = "studymate_last_flashcard_generate";
+
+  document.getElementById("flashcard-generate-form")?.addEventListener("submit", (e) => {
+    const form = e.target;
+    sessionStorage.setItem(STORAGE_KEY, JSON.stringify({
+      material_id: form.material_id.value,
+      topic_id: form.topic_id.value,
+      num_cards: form.num_cards.value,
+    }));
+    document.getElementById("flashcard-generate-card").innerHTML =
+      '<h3 class="mb-2">Generating flashcards…</h3>' +
+      '<div class="skeleton-line"></div><div class="skeleton-line"></div><div class="skeleton-line"></div>';
+  });
+
+  function submitStoredRetry(payload) {
+    const f = document.createElement("form");
+    f.method = "POST";
+    f.action = "{{ url_for('flashcards.generate') }}";
+    Object.entries(payload).forEach(([k, v]) => {
+      const input = document.createElement("input");
+      input.type = "hidden"; input.name = k; input.value = v;
+      f.appendChild(input);
+    });
+    document.body.appendChild(f);
+    f.submit();
+  }
+
+  {% with messages = get_flashed_messages(with_categories=true) %}
+    {% for category, message in messages %}
+      {% if category == "error" %}
+        (function() {
+          const stored = sessionStorage.getItem(STORAGE_KEY);
+          const banner = document.getElementById("flashcard-retry-banner");
+          if (!stored || !banner) return;
+          const payload = JSON.parse(stored);
+          banner.innerHTML = '<div class="retry-banner mb-3"><span>Generation failed — retry?</span>' +
+            '<button type="button" class="btn btn-ghost btn-sm" id="fc-retry-action">Retry</button></div>';
+          document.getElementById("fc-retry-action").addEventListener("click", () => submitStoredRetry(payload));
+        })();
+      {% elif category == "success" %}
+        sessionStorage.removeItem(STORAGE_KEY);
+      {% endif %}
+    {% endfor %}
+  {% endwith %}
+</script>
+{% endblock %}
